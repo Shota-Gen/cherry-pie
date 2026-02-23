@@ -1,0 +1,26 @@
+# --- Supabase Specific ---
+supabase/.temp/
+supabase/.branches/
+supabase/snippets/
+# Ignore the generated types if you want people to generate their own
+supabase/functions/.import_map.json
+
+# --- General ---
+.env
+.env.local
+.DS_Store
+
+# --- Python (Anant/Josh) ---
+.venv/
+__pycache__/
+*.pyc
+
+# --- Swift/Xcode (Ayah/Jeffrey/Jawad) ---
+build/
+DerivedData/
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+
+# --- Docker ---
+.docker-compose.override.yml
