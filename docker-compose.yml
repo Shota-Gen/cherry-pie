@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # The "Brain" (FastAPI + Python)
   api:
@@ -8,14 +6,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=postgresql://study_admin:study_password@db:5432/studyconnect_dev
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - studyconnect_network
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      - SUPABASE_URL=http://host.docker.internal:54321
+      - SUPABASE_KEY=${SUPABASE_ANON_KEY}
 
   # The "Pulse" (Swift UDP Relay)
   relay:
@@ -23,41 +16,3 @@ services:
     container_name: studyconnect_relay
     ports:
       - "5000:5000/udp"
-    networks:
-      - studyconnect_network
-
-  # The Database (PostGIS)
-  db:
-    image: postgis/postgis:15-3.3
-    container_name: studyconnect_db
-    environment:
-      POSTGRES_USER: study_admin
-      POSTGRES_PASSWORD: study_password
-      POSTGRES_DB: studyconnect_dev
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U study_admin -d studyconnect_dev"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - studyconnect_network
-
-   # Database GUI: Access via http://localhost:5050
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: studyconnect_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@studyconnect.dev
-      PGADMIN_DEFAULT_PASSWORD: admin_password
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
-    networks:
-      - studyconnect_network
-
-networks:
-  studyconnect_network:
-    driver: bridge

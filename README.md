@@ -53,7 +53,8 @@ UDP Relay Service (Fly.io)
 
 Install the following:
 
-- Docker Desktop
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Supabase CLI](https://supabase.com/docs/guides/cli) — `brew install supabase/tap/supabase`
 - Xcode 16+ (for iOS team)
 - Git
 
@@ -70,33 +71,55 @@ cd StudyConnect
 
 ### 3️⃣ Configure Environment Variables
 
-Create a `.env` file in the root directory & copy over `.env.example`
+```bash
+cp .env.example .env
+```
 
-Request production keys from Shota.
+Request production Supabase keys from Shota and fill them in.
 
 ---
 
-### 4️⃣ Start Backend Services
+### 4️⃣ Start Local Supabase
 
 ```bash
-docker-compose up --build -d
+supabase start
 ```
 
-Services will be available at:
+This spins up a full local Supabase stack (Postgres, Auth, Realtime, Storage, etc.).
 
-- API → http://localhost:8080
-- Database → localhost:5432
+Local services will be available at:
 
-To stop:
+- **Supabase Studio** (Database GUI) → http://localhost:54323
+- **Supabase API** → http://localhost:54321
+- **Postgres** → localhost:54322
+
+---
+
+### 5️⃣ Start Backend Services
 
 ```bash
-docker-compose down
+docker compose up --build
 ```
 
-To reset database:
+This starts your app services that connect to the local Supabase:
+
+- **API** → http://localhost:8080
+- **UDP Relay** → localhost:5000
+
+---
+
+### 6️⃣ Common Commands
 
 ```bash
-docker-compose down -v
+# Reset database (re-runs all migrations + seeds)
+supabase db reset
+
+# Stop everything
+docker compose down
+supabase stop
+
+# View database in browser
+open http://localhost:54323
 ```
 
 ---
@@ -153,9 +176,15 @@ We use a trunk-based workflow with automated deployment.
 
 ## 🚨 Troubleshooting
 
-**Port 5432 already in use**
+**Port 54322 already in use**
 
-- Stop any local PostgreSQL instances running outside Docker.
+- Another Supabase instance may be running. Run `supabase stop` first.
+- Or stop any local PostgreSQL instances: `brew services stop postgresql`
+
+**`supabase start` failing**
+
+- Make sure Docker Desktop is running first.
+- Try `supabase stop && supabase start` to restart cleanly.
 
 **UWB / Nearby Interaction not working**
 
@@ -166,9 +195,14 @@ We use a trunk-based workflow with automated deployment.
 
 - Try:
   ```bash
-  docker-compose down
+  docker compose down
   docker system prune -f
   ```
+
+**API can't connect to database**
+
+- Make sure `supabase start` is running before `docker compose up`.
+- Verify Docker Desktop's `host.docker.internal` is working (should be automatic on Mac).
 
 ---
 
@@ -178,9 +212,15 @@ We use a trunk-based workflow with automated deployment.
 
 Orchestrates:
 
-- FastAPI container
-- PostGIS database container
-- Shared internal Docker network
+- FastAPI API container
+- Swift UDP Relay container
+- Both connect to local Supabase via `host.docker.internal`
+
+### supabase/
+
+- `config.toml` — Local Supabase configuration
+- `migrations/` — Database schema migrations (auto-applied by `supabase db reset`)
+- `seed.sql` — Test data (auto-applied by `supabase db reset`)
 
 ### backend-api/Dockerfile
 
