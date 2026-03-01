@@ -53,7 +53,7 @@ UDP Relay Service (Fly.io)
 
 Install the following:
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Docker w/ OrbStack](https://orbstack.dev/)
 - [Supabase CLI](https://supabase.com/docs/guides/cli) — `brew install supabase/tap/supabase`
 - Xcode 16+ (for iOS team)
 - Git
