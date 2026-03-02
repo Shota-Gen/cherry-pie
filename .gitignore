@@ -12,6 +12,7 @@ supabase/functions/.import_map.json
 
 # --- Python (Anant/Josh) ---
 .venv/
+venv/
 __pycache__/
 *.pyc
 

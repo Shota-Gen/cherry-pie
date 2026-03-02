@@ -127,7 +127,7 @@ open http://localhost:54323
 ### 5 Python Venv (for Anant & Josh)
 
 1. Navigate to the backend folder: cd backend-api
-2. Create the environment: python3 -m venv .venv
+2. Create the environment: python3 -m venv .venv (using python 3.12)
 3. Activate it:
    Mac/Linux: source .venv/bin/activate
 4. Install the requirements locally: pip install -r requirements.txt
