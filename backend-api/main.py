@@ -4,9 +4,11 @@ FastAPI backend for the StudyConnect platform.
 """
 
 import os
-
+ 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from routers.users import router as users_router
 
 app = FastAPI(
     title="StudyConnect API",
@@ -36,3 +38,7 @@ async def health():
         "status": "healthy",
         "environment": os.getenv("ENVIRONMENT", "development"),
     }
+
+
+# -- Routers --
+app.include_router(users_router)
