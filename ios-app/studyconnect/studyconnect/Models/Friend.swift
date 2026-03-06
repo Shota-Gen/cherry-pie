@@ -2,7 +2,7 @@
 //  Friend.swift
 //  studyconnect
 //
-//  Created by Copilot on 3/6/26.
+//  Created by Jawad using Copilot on 3/6/26.
 //
 
 import Foundation
