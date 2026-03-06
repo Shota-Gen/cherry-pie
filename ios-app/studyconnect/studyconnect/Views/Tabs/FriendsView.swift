@@ -10,6 +10,7 @@ import SwiftUI
 struct FriendsView: View {
     @State private var friends: [Friend] = []
     @State private var service = FriendsService()
+    @State private var isGoogleLoggedIn = false // STUB: Track Google login state
     
     var body: some View {
         NavigationStack {
@@ -21,9 +22,10 @@ struct FriendsView: View {
                 VStack(spacing: 0) {
                     // White top bar with Friends title and Add button
                     HStack {
+                        Spacer()
+                        
                         Text("Friends")
-                            .font(.headline)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 20, weight: .semibold))
                         
                         Spacer()
                         
@@ -36,24 +38,92 @@ struct FriendsView: View {
                     .padding()
                     .background(Color.white)
                     
-                    // Scrollable friends list
+                    // Scrollable friends list with top button
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
+                            // Google Login or Create Session Button
+                            Group {
+                                if isGoogleLoggedIn {
+                                    // Create New Session Button
+                                    NavigationLink(destination: SelectFriendsView()) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "calendar")
+                                                .font(.system(size: 18, weight: .semibold))
+                                                .foregroundColor(.blue)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Create New")
+                                                    .font(.body)
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.black)
+                                                Text("Private Session")
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundColor(.gray)
+                                        }
+                                        .padding()
+                                        .background(Color.white)
+                                        .cornerRadius(8)
+                                    }
+                                } else {
+                                    // Google Sign In Button (Stub)
+                                    Button(action: {
+                                        // STUB: Trigger Google sign in
+                                        // TODO: Teammate will implement actual Google sign in here
+                                        isGoogleLoggedIn = true
+                                        print("Google sign in button tapped")
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "g.circle.fill")
+                                                .font(.system(size: 30, weight: .semibold))
+                                                .foregroundColor(.blue)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Connect to Google account")
+                                                    .font(.body)
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.black)
+                                                Text("Required to create study sessions")
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundColor(.gray)
+                                        }
+                                        .padding()
+                                        .background(Color.white)
+                                        .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.top, 12)
+                            
                             Text("Nearby Friends")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.gray)
                                 .padding(.horizontal)
-                                .padding(.top, 16)
+                                .padding(.top, 12)
                             
                             VStack(spacing: 12) {
                                 ForEach(friends.sorted { $0.distance < $1.distance }) { friend in
                                     HStack(spacing: 12) {
                                         // Icon
                                         Image(systemName: friend.icon)
-                                            .font(.system(size: 32))
+                                            .font(.system(size: 42))
                                             .foregroundColor(.blue)
-                                            .frame(width: 40)
+                                            .frame(width: 50)
                                         
                                         // Name and Location
                                         VStack(alignment: .leading, spacing: 4) {
@@ -67,10 +137,11 @@ struct FriendsView: View {
                                         
                                         Spacer()
                                         
-                                        // Distance
+                                        // Distance in bright blue
                                         Text(String(format: "%.1f mi", friend.distance))
                                             .font(.caption)
-                                            .foregroundColor(.gray)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0)) // Bright map blue
                                     }
                                     .padding()
                                     .background(Color.white)

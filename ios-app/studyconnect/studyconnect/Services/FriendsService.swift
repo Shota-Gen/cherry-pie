@@ -18,6 +18,7 @@ class FriendsService {
             Friend(icon: "person.circle.fill", name: "David Wilson", location: "Dining Hall", distance: 1.8),
             Friend(icon: "person.circle.fill", name: "Emma Brown", location: "Gym", distance: 0.3),
         ]
+        // TODO: Implement actual API call to fetch friends list
     }
     
     // STUB: Add a friend
