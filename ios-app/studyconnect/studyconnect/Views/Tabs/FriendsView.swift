@@ -8,13 +8,84 @@
 import SwiftUI
 
 struct FriendsView: View {
+    @State private var friends: [Friend] = []
+    @State private var service = FriendsService()
+    
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                NavigationLink("Add Friend", destination: AddFriendView())
-                NavigationLink("Create Session", destination: SelectFriendsView())
+            ZStack {
+                // Gray background
+                Color(red: 0.95, green: 0.95, blue: 0.95)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // White top bar with Friends title and Add button
+                    HStack {
+                        Text("Friends")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Spacer()
+                        
+                        NavigationLink(destination: AddFriendView()) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding()
+                    .background(Color.white)
+                    
+                    // Scrollable friends list
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Nearby Friends")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.gray)
+                                .padding(.horizontal)
+                                .padding(.top, 16)
+                            
+                            VStack(spacing: 12) {
+                                ForEach(friends.sorted { $0.distance < $1.distance }) { friend in
+                                    HStack(spacing: 12) {
+                                        // Icon
+                                        Image(systemName: friend.icon)
+                                            .font(.system(size: 32))
+                                            .foregroundColor(.blue)
+                                            .frame(width: 40)
+                                        
+                                        // Name and Location
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(friend.name)
+                                                .font(.body)
+                                                .fontWeight(.semibold)
+                                            Text(friend.location)
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        // Distance
+                                        Text(String(format: "%.1f mi", friend.distance))
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                    .padding()
+                                    .background(Color.white)
+                                    .cornerRadius(8)
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.bottom, 16)
+                        }
+                    }
+                }
             }
-            .navigationTitle("Friends")
+            .onAppear {
+                friends = service.getFriendsList()
+            }
         }
     }
 }
