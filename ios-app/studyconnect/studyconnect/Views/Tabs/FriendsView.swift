@@ -10,7 +10,6 @@ import SwiftUI
 struct FriendsView: View {
     @State private var friends: [Friend] = []
     @State private var service = FriendsService()
-    @State private var isGoogleLoggedIn = false // STUB: Track Google login state
     
     var body: some View {
         NavigationStack {
@@ -41,70 +40,32 @@ struct FriendsView: View {
                     // Scrollable friends list with top button
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
-                            // Google Login or Create Session Button
-                            Group {
-                                if isGoogleLoggedIn {
-                                    // Create New Session Button
-                                    NavigationLink(destination: SelectFriendsView()) {
-                                        HStack(spacing: 12) {
-                                            Image(systemName: "calendar")
-                                                .font(.system(size: 18, weight: .semibold))
-                                                .foregroundColor(.blue)
-                                            
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text("Create New")
-                                                    .font(.body)
-                                                    .fontWeight(.semibold)
-                                                    .foregroundColor(.black)
-                                                Text("Private Session")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                            }
-                                            
-                                            Spacer()
-                                            
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(.gray)
-                                        }
-                                        .padding()
-                                        .background(Color.white)
-                                        .cornerRadius(8)
+                            // Create New Session Button
+                            NavigationLink(destination: SelectFriendsView()) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "calendar")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.blue)
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Create New")
+                                            .font(.body)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.black)
+                                        Text("Private Session")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
                                     }
-                                } else {
-                                    // Google Sign In Button (Stub)
-                                    Button(action: {
-                                        // STUB: Trigger Google sign in
-                                        // TODO: Teammate will implement actual Google sign in here
-                                        isGoogleLoggedIn = true
-                                        print("Google sign in button tapped")
-                                    }) {
-                                        HStack(spacing: 12) {
-                                            Image(systemName: "g.circle.fill")
-                                                .font(.system(size: 30, weight: .semibold))
-                                                .foregroundColor(.blue)
-                                            
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text("Connect to Google account")
-                                                    .font(.body)
-                                                    .fontWeight(.semibold)
-                                                    .foregroundColor(.black)
-                                                Text("Required to create study sessions")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                            }
-                                            
-                                            Spacer()
-                                            
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(.gray)
-                                        }
-                                        .padding()
-                                        .background(Color.white)
-                                        .cornerRadius(8)
-                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.gray)
                                 }
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(8)
                             }
                             .padding(.horizontal)
                             .padding(.top, 12)
