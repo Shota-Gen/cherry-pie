@@ -82,6 +82,19 @@ class SupabaseManager: ObservableObject {
             print("❌ Update failed: \(error.localizedDescription)")
         }
     }
+
+    @MainActor
+    func signOut() async {
+        do {
+            try await client.auth.signOut()
+        } catch {
+            print("❌ Supabase sign out failed: \(error.localizedDescription)")
+        }
+
+        GIDSignIn.sharedInstance.signOut()
+        session = nil
+        print("✅ Signed out")
+    }
 }
 
 private func sha256(_ input: String) -> String {

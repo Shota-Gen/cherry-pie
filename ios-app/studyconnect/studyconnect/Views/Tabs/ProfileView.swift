@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ProfileView: View {
+    @EnvironmentObject var supabase: SupabaseManager
     @State private var service = ProfileService()
     @State private var profile = UserProfile(
         displayName: "",
@@ -71,6 +72,24 @@ struct ProfileView: View {
                         Spacer()
                         Image(systemName: "chevron.right")
                             .foregroundColor(.gray)
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(12)
+                }
+
+                Button {
+                    Task {
+                        await supabase.signOut()
+                    }
+                } label: {
+                    HStack {
+                        Text("Sign Out")
+                            .fontWeight(.semibold)
+                            .foregroundColor(.red)
+                        Spacer()
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
                     }
                     .padding()
                     .background(Color.white)
