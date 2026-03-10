@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Auth
 
 struct ProfileView: View {
     @EnvironmentObject var supabase: SupabaseManager
@@ -102,7 +103,7 @@ struct ProfileView: View {
             .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
             .navigationTitle("Profile")
             .onAppear {
-                profile = service.fetchProfile()
+                profile = service.fetchProfile(email: supabase.session?.user.email)
             }
         }
     }

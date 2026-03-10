@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import Auth
 
 struct EditProfileView: View {
+    @EnvironmentObject var supabase: SupabaseManager
     @State private var service = ProfileService()
     @State private var displayName: String = ""
     @State private var bio: String = ""
@@ -53,7 +55,7 @@ struct EditProfileView: View {
         }
         .navigationTitle("Edit Profile")
         .onAppear {
-            let profile = service.fetchProfile()
+            let profile = service.fetchProfile(email: supabase.session?.user.email)
             displayName = profile.displayName
             bio = profile.bio
             major = profile.major
@@ -64,4 +66,5 @@ struct EditProfileView: View {
 
 #Preview {
     EditProfileView()
+        .environmentObject(SupabaseManager.shared)
 }
