@@ -11,35 +11,41 @@ import Auth
 struct EditProfileView: View {
     @EnvironmentObject var supabase: SupabaseManager
     @State private var service = ProfileService()
-    @State private var displayName: String = ""
-    @State private var bio: String = ""
-    @State private var major: String = ""
-    @State private var graduationYear: String = ""
-    @State private var saveMessage: String = ""
+    @State private var loadedProfile = UserProfile.blank()
+    @State private var displayName = ""
+    @State private var major = ""
+    @State private var universityYear: Int? = nil
+    @State private var profileImage = ""
+    @State private var isInvisible = false
+    @State private var saveMessage = ""
 
     var body: some View {
         Form {
-            Section("Basic Info") {
-                TextField("Display name", text: $displayName)
+            Section("Profile") {
+                TextField("Display Name", text: $displayName)
                 TextField("Major", text: $major)
-                TextField("Graduation year", text: $graduationYear)
-                    .keyboardType(.numberPad)
+                Picker("Year", selection: $universityYear) {
+                    Text("Not set").tag(nil as Int?)
+                    ForEach(1...6, id: \.self) { year in
+                        Text("Year \(year)").tag(year as Int?)
+                    }
+                }
+                TextField("Profile Image URL", text: $profileImage)
             }
 
-            Section("Bio") {
-                TextField("Tell others how you like to study", text: $bio, axis: .vertical)
-                    .lineLimit(3...5)
+            Section("Privacy") {
+                Toggle("Invisible Mode", isOn: $isInvisible)
             }
 
             Section {
                 Button("Save Changes") {
-                    let updatedProfile = UserProfile(
-                        displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines),
-                        bio: bio.trimmingCharacters(in: .whitespacesAndNewlines),
-                        major: major.trimmingCharacters(in: .whitespacesAndNewlines),
-                        graduationYear: graduationYear.trimmingCharacters(in: .whitespacesAndNewlines)
-                    )
-                    service.updateProfile(updatedProfile)
+                    var updated = loadedProfile
+                    updated.displayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    updated.major = major.trimmingCharacters(in: .whitespacesAndNewlines)
+                    updated.universityYear = universityYear
+                    updated.profileImage = profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
+                    updated.isInvisible = isInvisible
+                    service.updateProfile(updated)
                     saveMessage = "Profile update stub sent."
                 }
                 .disabled(displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -47,19 +53,19 @@ struct EditProfileView: View {
 
             if !saveMessage.isEmpty {
                 Section {
-                    Text(saveMessage)
-                        .font(.footnote)
-                        .foregroundColor(.green)
+                    Text(saveMessage).font(.footnote).foregroundColor(.green)
                 }
             }
         }
         .navigationTitle("Edit Profile")
         .onAppear {
-            let profile = service.fetchProfile(email: supabase.session?.user.email)
-            displayName = profile.displayName
-            bio = profile.bio
-            major = profile.major
-            graduationYear = profile.graduationYear
+            let p = service.fetchProfile(email: supabase.session?.user.email)
+            loadedProfile = p
+            displayName = p.displayName
+            major = p.major
+            universityYear = p.universityYear
+            profileImage = p.profileImage
+            isInvisible = p.isInvisible
         }
     }
 }

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct FriendsView: View {
-    @State private var friends: [Friend] = []
+    @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
     
     var body: some View {
@@ -78,20 +78,19 @@ struct FriendsView: View {
                                 .padding(.top, 12)
                             
                             VStack(spacing: 12) {
-                                ForEach(friends.sorted { $0.distance < $1.distance }) { friend in
+                                ForEach(friends.sorted { ($0.distanceMiles ?? .greatestFiniteMagnitude) < ($1.distanceMiles ?? .greatestFiniteMagnitude) }) { friend in
                                     HStack(spacing: 12) {
                                         // Icon
-                                        Image(systemName: friend.icon)
+                                        Image(systemName: "person.circle.fill")
                                             .font(.system(size: 42))
                                             .foregroundColor(.blue)
                                             .frame(width: 50)
-                                        
-                                        // Name and Location
+
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text(friend.name)
+                                            Text(friend.displayTitle)
                                                 .font(.body)
                                                 .fontWeight(.semibold)
-                                            Text(friend.location)
+                                            Text(friend.studySpot.isEmpty ? "Not Found" : friend.studySpot)
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
                                         }
@@ -99,7 +98,7 @@ struct FriendsView: View {
                                         Spacer()
                                         
                                         // Distance in bright blue
-                                        Text(String(format: "%.1f mi", friend.distance))
+                                        Text(friend.distanceMiles != nil ? String(format: "%.1f mi", friend.distanceMiles!) : "--")
                                             .font(.caption)
                                             .fontWeight(.semibold)
                                             .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0)) // Bright map blue
