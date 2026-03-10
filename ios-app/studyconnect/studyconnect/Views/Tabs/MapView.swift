@@ -6,19 +6,27 @@
 //
 import SwiftUI
 import MapKit
+
 struct MapView: View {
     @StateObject private var locManager = LocationManager()
+    
+    // This allows the map to start at the user's location and
+    // stay interactive (panning/zooming won't be fought)
+    @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
+    
     var body: some View {
-        Map(position: .constant(.region(locManager.region))) {
-            UserAnnotation() // show user
+        Map(position: $position) {
+            UserAnnotation()
             
-            //add study zones
             Annotation("UGLI", coordinate: CLLocationCoordinate2D(latitude: 42.2743, longitude: -83.7397)) {
-                Image(systemName: "book.fill").foregroundColor(.blue)
+                Image(systemName: "book.fill")
+                    .foregroundColor(.blue)
             }
         }
-        .onAppear {
-            // register zones/fetch data
+        .mapControls {
+            MapUserLocationButton()
+            MapCompass() // Shows the compass when rotating
+            MapPitchToggle() 
         }
     }
 }

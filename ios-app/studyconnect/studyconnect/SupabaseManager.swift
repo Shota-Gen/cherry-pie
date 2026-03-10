@@ -84,29 +84,29 @@ class SupabaseManager: ObservableObject {
     }
     
     @MainActor
-       func updateLocation(latitude: Double, longitude: Double) async {
-           guard let userId = session?.user.id else { return }
-           
-           do {
-               // mapping to supabase
-               let updateData: [String: AnyEncodable] = [
-                   "last_known_lat": AnyEncodable(latitude),
-                   "last_known_lng": AnyEncodable(longitude),
-                   "last_seen": AnyEncodable(ISO8601DateFormatter().string(from: Date()))
-               ]
-               
-               try await client
-                   .from("users")
-                   .update(updateData)
-                   .eq("user_id", value: userId)
-                   .execute()
-                   
-               print("Location updated: \(latitude), \(longitude)")
-           } catch {
-               print("Location update failed: \(error.localizedDescription)")
-           }
-       }
-
+    func updateLocation(latitude: Double, longitude: Double) async {
+        guard let userId = session?.user.id else { return }
+        
+        do {
+            // Removed "last_seen" to match the actual database schema
+            let updateData: [String: AnyEncodable] = [
+                "last_known_lat": AnyEncodable(latitude),
+                "last_known_lng": AnyEncodable(longitude)
+                // possible to add a last-seen field to supabase, so we
+                // can display elapsed time (ex: last seen location from 20 min ago)
+            ]
+            
+            try await client
+                .from("users")
+                .update(updateData)
+                .eq("user_id", value: userId)
+                .execute()
+                
+            print("Location updated: \(latitude), \(longitude)")
+        } catch {
+            print("Location update failed: \(error.localizedDescription)")
+        }
+    }
 
     @MainActor
     func signOut() async {
