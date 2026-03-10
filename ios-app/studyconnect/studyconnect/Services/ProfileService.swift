@@ -8,32 +8,14 @@
 import Foundation
 
 class ProfileService {
-    // STUB: Fetch current user's profile with fallback display name logic.
-    // 1) Use API displayName if present.
-    // 2) Else derive from logged-in email local-part.
-    // 3) Else keep displayName blank.
-    // Other fields stay blank unless API provides them.
+    // STUB: Fetch profile. Display name fallback: API → derived from email → blank.
     func fetchProfile(email: String?) -> UserProfile {
-        let apiProfile = fetchProfileFromAPIStub()
-
-        let displayName: String
-        if let apiDisplayName = apiProfile?.displayName,
-           !apiDisplayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            displayName = apiDisplayName
-        } else if let email,
-                  let emailDisplayName = deriveDisplayName(from: email),
-                  !emailDisplayName.isEmpty {
-            displayName = emailDisplayName
-        } else {
-            displayName = ""
+        var profile = fetchProfileFromAPIStub() ?? UserProfile.blank(email: email ?? "")
+        if profile.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            profile.displayName = email.flatMap { deriveDisplayName(from: $0) } ?? ""
         }
-
-        return UserProfile(
-            displayName: displayName,
-            bio: apiProfile?.bio ?? "",
-            major: apiProfile?.major ?? "",
-            graduationYear: apiProfile?.graduationYear ?? ""
-        )
+        if let email { profile.email = email }
+        return profile
     }
 
     // STUB: Update current user's profile
@@ -42,25 +24,14 @@ class ProfileService {
         // TODO: Implement actual API call
     }
 
-    // STUB: Replace with real API call that fetches profile from backend.
+    // STUB: Replace with real Supabase fetch.
     private func fetchProfileFromAPIStub() -> UserProfile? {
-        return UserProfile(
-            displayName: "",
-            bio: "",
-            major: "",
-            graduationYear: ""
-        )
+        return nil
     }
 
     private func deriveDisplayName(from email: String) -> String? {
-        let parts = email.split(separator: "@")
-        guard let localPart = parts.first, !localPart.isEmpty else { return nil }
-
-        let normalized = localPart.replacingOccurrences(of: ".", with: " ")
-        let words = normalized
-            .split(separator: " ")
-            .map { $0.capitalized }
-
-        return words.joined(separator: " ")
+        guard let localPart = email.split(separator: "@").first, !localPart.isEmpty else { return nil }
+        return localPart.replacingOccurrences(of: ".", with: " ")
+            .split(separator: " ").map { $0.capitalized }.joined(separator: " ")
     }
 }

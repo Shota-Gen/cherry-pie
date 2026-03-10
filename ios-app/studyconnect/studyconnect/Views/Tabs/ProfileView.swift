@@ -11,30 +11,32 @@ import Auth
 struct ProfileView: View {
     @EnvironmentObject var supabase: SupabaseManager
     @State private var service = ProfileService()
-    @State private var profile = UserProfile(
-        displayName: "",
-        bio: "",
-        major: "",
-        graduationYear: ""
-    )
+    @State private var profile = UserProfile.blank()
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
                 HStack(spacing: 12) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 56))
-                        .foregroundColor(.blue)
+                    if let url = URL(string: profile.profileImage), !profile.profileImage.isEmpty {
+                        AsyncImage(url: url) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.system(size: 56)).foregroundColor(.blue)
+                        }
+                        .frame(width: 56, height: 56)
+                        .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.system(size: 56)).foregroundColor(.blue)
+                    }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(profile.displayName.isEmpty ? "Your Name" : profile.displayName)
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                        Text(profile.major.isEmpty ? "Major" : profile.major)
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                            .font(.title3).fontWeight(.semibold)
+                        Text(supabase.session?.user.email ?? "")
+                            .font(.subheadline).foregroundColor(.gray)
                     }
-
                     Spacer()
                 }
                 .padding()
@@ -42,12 +44,14 @@ struct ProfileView: View {
                 .cornerRadius(12)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Bio")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    Text(profile.bio.isEmpty ? "Add a short bio in Edit Profile." : profile.bio)
-                        .font(.body)
+                    Text("Account").font(.caption).foregroundColor(.gray)
+                    Text(supabase.session?.user.email ?? "")
+                    Text("Major: \(profile.major.isEmpty ? "Not set" : profile.major)")
+                    Text("Year: \(profile.universityYear.map(String.init) ?? "Not set")")
+                    Text("Study Spot: \(profile.studySpot.isEmpty ? "Not Found" : profile.studySpot)")
+                    Text(profile.isInvisible ? "Visibility: Hidden" : "Visibility: Visible")
                 }
+                .font(.body)
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.white)

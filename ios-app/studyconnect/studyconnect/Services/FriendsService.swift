@@ -8,25 +8,25 @@
 import Foundation
 
 class FriendsService {
-    
+
     // STUB: Fetch friends list
-    func getFriendsList() -> [Friend] {
+    func getFriendsList() -> [UserProfile] {
         return [
-            Friend(icon: "person.circle.fill", name: "Alice Johnson", location: "Engineering Building", distance: 0.2),
-            Friend(icon: "person.circle.fill", name: "Bob Smith", location: "Library", distance: 0.5),
-            Friend(icon: "person.circle.fill", name: "Carol Davis", location: "Student Center", distance: 1.2),
-            Friend(icon: "person.circle.fill", name: "David Wilson", location: "Dining Hall", distance: 1.8),
-            Friend(icon: "person.circle.fill", name: "Emma Brown", location: "Gym", distance: 0.3),
+            UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
+            UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5),
+            UserProfile(userId: UUID(), displayName: "Carol Davis",    email: "carol@umich.edu", studySpot: "Student Center",      distanceMiles: 1.2),
+            UserProfile(userId: UUID(), displayName: "David Wilson",   email: "david@umich.edu", studySpot: "Dining Hall",         distanceMiles: 1.8),
+            UserProfile(userId: UUID(), displayName: "Emma Brown",     email: "emma@umich.edu",  studySpot: "Gym",                 distanceMiles: 0.3)
         ]
         // TODO: Implement actual API call to fetch friends list
     }
-    
+
     // STUB: Add a friend by email
     func addFriend(email: String) {
         print("Adding friend by email: \(email)")
         // TODO: Implement actual API call
     }
-    
+
     // STUB: Delete a friend
     func deleteFriend(id: UUID) {
         print("Deleting friend with ID: \(id)")
