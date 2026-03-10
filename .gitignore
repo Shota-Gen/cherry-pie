@@ -27,4 +27,3 @@ ios-app/Exported*/*
 
 # --- Docker ---
 .docker-compose.override.yml
-ios-app/studyconnect/studyconnect.xcodeproj/project.pbxproj
