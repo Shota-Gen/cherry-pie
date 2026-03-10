@@ -1,5 +1,5 @@
 -- 1. Enable PostGIS to handle geographic polygons
-CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS postgis with schema "extensions";
 
 -- 2. Create the Public Study Spots Table
 CREATE TABLE public.study_spots (

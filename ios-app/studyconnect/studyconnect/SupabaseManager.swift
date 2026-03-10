@@ -82,6 +82,31 @@ class SupabaseManager: ObservableObject {
             print("❌ Update failed: \(error.localizedDescription)")
         }
     }
+    
+    @MainActor
+       func updateLocation(latitude: Double, longitude: Double) async {
+           guard let userId = session?.user.id else { return }
+           
+           do {
+               // mapping to supabase
+               let updateData: [String: AnyEncodable] = [
+                   "last_known_lat": AnyEncodable(latitude),
+                   "last_known_lng": AnyEncodable(longitude),
+                   "last_seen": AnyEncodable(ISO8601DateFormatter().string(from: Date()))
+               ]
+               
+               try await client
+                   .from("users")
+                   .update(updateData)
+                   .eq("user_id", value: userId)
+                   .execute()
+                   
+               print("Location updated: \(latitude), \(longitude)")
+           } catch {
+               print("Location update failed: \(error.localizedDescription)")
+           }
+       }
+
 
     @MainActor
     func signOut() async {
@@ -121,3 +146,17 @@ extension String {
         return result
     }
 }
+
+// Helper to handle mixed types for Supabase updates ? .. not tested
+struct AnyEncodable: Encodable {
+    private let _encode: (Encoder) throws -> Void
+    init<T: Encodable>(_ value: T) {
+        _encode = value.encode
+    }
+    func encode(to encoder: Encoder) throws {
+        try _encode(encoder)
+    }
+}
+
+
+
