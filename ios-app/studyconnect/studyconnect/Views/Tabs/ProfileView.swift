@@ -17,19 +17,9 @@ struct ProfileView: View {
         NavigationStack {
             VStack(spacing: 16) {
                 HStack(spacing: 12) {
-                    if let url = URL(string: profile.profileImage), !profile.profileImage.isEmpty {
-                        AsyncImage(url: url) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 56)).foregroundColor(.blue)
-                        }
-                        .frame(width: 56, height: 56)
-                        .clipShape(Circle())
-                    } else {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 56)).foregroundColor(.blue)
-                    }
+                    AvatarView(name: profile.displayName.isEmpty ? (supabase.session?.user.email ?? "") : profile.displayName,
+                               imageURL: profile.profileImage,
+                               size: 56)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(profile.displayName.isEmpty ? "Your Name" : profile.displayName)

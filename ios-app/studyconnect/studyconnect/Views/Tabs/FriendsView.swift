@@ -10,9 +10,10 @@ import SwiftUI
 struct FriendsView: View {
     @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
-    
+    @State private var path = NavigationPath()
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 // Gray background
                 Color(red: 0.95, green: 0.95, blue: 0.95)
@@ -41,7 +42,7 @@ struct FriendsView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
                             // Create New Session Button
-                            NavigationLink(destination: SelectFriendsView()) {
+                            NavigationLink(value: FriendsRoute.selectFriends) {
                                 HStack(spacing: 12) {
                                     Image(systemName: "calendar")
                                         .font(.system(size: 18, weight: .semibold))
@@ -79,33 +80,7 @@ struct FriendsView: View {
                             
                             VStack(spacing: 12) {
                                 ForEach(friends.sorted { ($0.distanceMiles ?? .greatestFiniteMagnitude) < ($1.distanceMiles ?? .greatestFiniteMagnitude) }) { friend in
-                                    HStack(spacing: 12) {
-                                        // Icon
-                                        Image(systemName: "person.circle.fill")
-                                            .font(.system(size: 42))
-                                            .foregroundColor(.blue)
-                                            .frame(width: 50)
-
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(friend.displayTitle)
-                                                .font(.body)
-                                                .fontWeight(.semibold)
-                                            Text(friend.studySpot.isEmpty ? "Not Found" : friend.studySpot)
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        // Distance in bright blue
-                                        Text(friend.distanceMiles != nil ? String(format: "%.1f mi", friend.distanceMiles!) : "--")
-                                            .font(.caption)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0)) // Bright map blue
-                                    }
-                                    .padding()
-                                    .background(Color.white)
-                                    .cornerRadius(8)
+                                    FriendRowView(friend: friend)
                                 }
                             }
                             .padding(.horizontal)
@@ -116,6 +91,14 @@ struct FriendsView: View {
             }
             .onAppear {
                 friends = service.getFriendsList()
+            }
+            .navigationDestination(for: FriendsRoute.self) { route in
+                switch route {
+                case .selectFriends:
+                    SelectFriendsView()
+                case .findAvailability(let profiles):
+                    FindAvailabilityView(selectedFriends: profiles, path: $path)
+                }
             }
         }
     }

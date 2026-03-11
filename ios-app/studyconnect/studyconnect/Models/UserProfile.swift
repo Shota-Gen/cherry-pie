@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct UserProfile: Identifiable, Codable {
+struct UserProfile: Identifiable, Codable, Hashable {
     // Mirrors public.users table in Supabase.
     var userId: UUID
     var displayName: String

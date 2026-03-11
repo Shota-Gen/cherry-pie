@@ -8,38 +8,62 @@
 import SwiftUI
 
 struct SelectFriendsView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
-    
-    // This Set will store the IDs of the friends you tap on
     @State private var selectedFriendIDs: Set<UUID> = []
-    
+
     var body: some View {
         ZStack {
             Color(red: 0.95, green: 0.95, blue: 0.95)
                 .ignoresSafeArea()
-            
-            VStack {
+
+            VStack(spacing: 0) {
+                // Custom white top bar
+                ZStack {
+                    Text("Select Friends")
+                        .font(.system(size: 20, weight: .semibold))
+
+                    HStack {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding()
+                .background(Color.white)
+
                 ScrollView {
-                    VStack(spacing: 12) {
-                        // FIXED: Using \.userId to identify each friend properly
-                        ForEach(friends, id: \.userId) { friend in
-                            FriendSelectionRow(
-                                // FIXED: Pulling the actual name from your service!
-                                name: friend.displayName,
-                                isSelected: selectedFriendIDs.contains(friend.userId)
-                            ) {
-                                toggleSelection(for: friend.userId)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("SUGGESTED")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.gray)
+                            .padding(.horizontal)
+                            .padding(.top, 12)
+
+                        VStack(spacing: 12) {
+                            ForEach(friends) { friend in
+                                let isSelected = selectedFriendIDs.contains(friend.userId)
+                                Button {
+                                    toggleSelection(for: friend.userId)
+                                } label: {
+                                    FriendRowView(friend: friend, isSelected: isSelected)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
                     }
-                    .padding()
                 }
-                
-                Spacer()
-                
-                // The "Next" Button
-                NavigationLink(destination: FindAvailabilityView(selectedFriends: Array(selectedFriendIDs))) {
+
+                NavigationLink(value: FriendsRoute.findAvailability(selectedProfiles)) {
                     Text("Next")
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -50,17 +74,23 @@ struct SelectFriendsView: View {
                         .cornerRadius(10)
                         .padding(.horizontal)
                         .padding(.bottom, 16)
+                        .padding(.top, 8)
                 }
                 .disabled(selectedFriendIDs.isEmpty)
             }
         }
-        .navigationTitle("Select Friends")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
         .onAppear {
-            friends = service.getFriendsList()
+            if friends.isEmpty {
+                friends = service.getSuggestedFriends()
+            }
         }
     }
-    
+
+    private var selectedProfiles: [UserProfile] {
+        friends.filter { selectedFriendIDs.contains($0.userId) }
+    }
+
     private func toggleSelection(for id: UUID) {
         if selectedFriendIDs.contains(id) {
             selectedFriendIDs.remove(id)
@@ -70,39 +100,3 @@ struct SelectFriendsView: View {
     }
 }
 
-// A reusable row component for the selection list
-struct FriendSelectionRow: View {
-    let name: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 40, height: 40)
-                    .overlay(Text(name.prefix(1)).foregroundColor(.black))
-                
-                Text(name)
-                    .foregroundColor(.primary)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.blue)
-                        .font(.title2)
-                } else {
-                    Image(systemName: "circle")
-                        .foregroundColor(.gray.opacity(0.5))
-                        .font(.title2)
-                }
-            }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(8)
-        }
-    }
-}

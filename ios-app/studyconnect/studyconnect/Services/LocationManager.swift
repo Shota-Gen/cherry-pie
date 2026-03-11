@@ -2,7 +2,7 @@
 //  LocationManager.swift
 //  studyconnect
 //
-//  Created by Ayah Chahine on 3/9/26.
+//  Created by Ayah Chahine using Gemini on 3/9/26.
 //
 import Foundation
 import CoreLocation

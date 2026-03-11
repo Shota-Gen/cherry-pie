@@ -32,4 +32,10 @@ class FriendsService {
         print("Deleting friend with ID: \(id)")
         // TODO: Implement actual API call
     }
+
+    // STUB: Returns suggested friends to invite to a session.
+    func getSuggestedFriends() -> [UserProfile] {
+        return getFriendsList()
+        // TODO: Replace with real suggestion algorithm (e.g. nearby, frequent study partners)
+    }
 }
