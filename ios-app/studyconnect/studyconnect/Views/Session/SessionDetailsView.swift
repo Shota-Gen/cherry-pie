@@ -232,9 +232,10 @@ private struct DateRangePickerSheet: View {
                 Button { shiftMonth(-1) } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.blue)
+                        .foregroundColor(isOnCurrentMonth ? Color(.systemGray4) : .blue)
                         .padding(10)
                 }
+                .disabled(isOnCurrentMonth)
                 Spacer()
                 Text(monthLabel)
                     .font(.system(size: 18, weight: .semibold))
@@ -264,7 +265,7 @@ private struct DateRangePickerSheet: View {
             LazyVGrid(columns: gridCols, spacing: 0) {
                 ForEach(Array(gridDays().enumerated()), id: \.offset) { _, day in
                     if let day = day {
-                        RangeDayCell(date: day, start: localStart, end: localEnd) {
+                        RangeDayCell(date: day, start: localStart, end: localEnd, today: cal.startOfDay(for: Date())) {
                             handleTap(day)
                         }
                     } else {
@@ -285,8 +286,13 @@ private struct DateRangePickerSheet: View {
         return fmt.string(from: displayMonth)
     }
 
+    private var isOnCurrentMonth: Bool {
+        cal.isDate(displayMonth, equalTo: Date(), toGranularity: .month)
+    }
+
     private func handleTap(_ date: Date) {
         let day = cal.startOfDay(for: date)
+        guard day >= cal.startOfDay(for: Date()) else { return }
         if !isSelectingEnd {
             // First tap: set start, wait for end
             localStart = day
@@ -331,10 +337,12 @@ private struct RangeDayCell: View {
     let date: Date
     let start: Date
     let end: Date
+    let today: Date
     let onTap: () -> Void
 
     private let cal = Calendar.current
     private var dayNum: Int { cal.component(.day, from: date) }
+    private var isPast: Bool { cal.startOfDay(for: date) < today }
     private var isStart: Bool { cal.isDate(date, inSameDayAs: start) }
     private var isEnd: Bool { cal.isDate(date, inSameDayAs: end) }
     private var isSingle: Bool { cal.isDate(start, inSameDayAs: end) }
@@ -367,9 +375,13 @@ private struct RangeDayCell: View {
             // Day number
             Text("\(dayNum)")
                 .font(.system(size: 16, weight: (isStart || isEnd) ? .semibold : .regular))
-                .foregroundColor((isStart || isEnd) ? .white : .primary)
+                .foregroundColor(
+                    isPast ? Color(.systemGray4)
+                    : (isStart || isEnd) ? .white
+                    : .primary
+                )
                 .frame(width: 36, height: 36)
-                .background((isStart || isEnd) ? Color.blue : Color.clear)
+                .background((isStart || isEnd) && !isPast ? Color.blue : Color.clear)
                 .clipShape(Circle())
         }
         .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
