@@ -8,63 +8,133 @@
 import SwiftUI
 
 struct AddFriendView: View {
-    @State private var email: String = ""
-    @State private var statusMessage: String = ""
-    @State private var statusColor: Color = .gray
+    @Environment(\.dismiss) private var dismiss
+    @State private var uid: String = ""
+    @State private var showSuccess = false
     @State private var service = FriendsService()
 
-    private var isEmailValid: Bool {
-        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.contains("@") && trimmed.contains(".")
-    }
-
     var body: some View {
-        Form {
-            Section("Friend Email") {
-                TextField("friend@school.edu", text: $email)
-                    .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
+        ZStack {
+            Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
 
-                Text("Email is required to add a friend")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+            VStack(spacing: 0) {
+                // Title bar
+                ZStack {
+                    Text("Add Friend")
+                        .font(.system(size: 20, weight: .semibold))
+                    HStack {
+                        Button { dismiss() } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding()
+                .background(Color.white)
+
+                VStack(alignment: .leading, spacing: 20) {
+                    // Description
+                    Text("Enter your friend's unique user ID (UID) to send them a request. You can find your UID in your profile settings.")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .padding(.top, 4)
+
+                    // UID input
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Enter their UID")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.gray)
+
+                        TextField("e.g. 8492-AB-21", text: $uid)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                            .padding(12)
+                            .background(Color(red: 0.92, green: 0.92, blue: 0.92))
+                            .cornerRadius(10)
+                    }
+
+                    // Send button
+                    Button {
+                        service.addFriend(id: uid)
+                        print("Friend request sent")
+                        showSuccess = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text("Send Friend Request")
+                            Image(systemName: "paperplane.fill")
+                        }
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(uid.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray : Color.blue)
+                        .cornerRadius(10)
+                    }
+                    .disabled(uid.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding()
+
+                Spacer()
             }
 
-            Section {
-                Button("Add Friend") {
-                    let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else {
-                        statusMessage = "Please enter a friend email."
-                        statusColor = .red
-                        return
-                    }
-                    guard isEmailValid else {
-                        statusMessage = "Please enter a valid email address."
-                        statusColor = .red
-                        return
+            // Dimmed overlay + success card
+            if showSuccess {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                VStack(spacing: 20) {
+                    // Green checkmark circle
+                    ZStack {
+                        Circle()
+                            .fill(Color.green.opacity(0.15))
+                            .frame(width: 80, height: 80)
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.green)
                     }
 
-                    service.addFriend(email: trimmed)
-                    statusMessage = "Friend request stub sent to \(trimmed)."
-                    statusColor = .green
-                    email = ""
-                }
-                .disabled(!isEmailValid)
-            }
+                    Text("Request Sent!")
+                        .font(.title2.weight(.bold))
 
-            if !statusMessage.isEmpty {
-                Section {
-                    Text(statusMessage)
-                        .font(.footnote)
-                        .foregroundColor(statusColor)
+                    Text("We'll let them know you want to connect.")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        showSuccess = false
+                        dismiss()
+                    } label: {
+                        Text("Back to Friends")
+                            .font(.headline.weight(.semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                    }
+                    .padding(.top, 4)
                 }
+                .padding(32)
+                .background(Color.white)
+                .cornerRadius(20)
+                .shadow(radius: 20)
+                .padding(.horizontal, 32)
+                .transition(.scale.combined(with: .opacity))
             }
         }
-        .navigationTitle("Add Friend")
+        .navigationBarHidden(true)
+        .animation(.easeInOut(duration: 0.22), value: showSuccess)
     }
 }
 
 #Preview {
-    AddFriendView()
+    NavigationStack {
+        AddFriendView()
+    }
 }
+
+

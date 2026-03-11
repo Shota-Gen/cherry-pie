@@ -21,9 +21,10 @@ class FriendsService {
         // TODO: Implement actual API call to fetch friends list
     }
 
-    // STUB: Add a friend by email
-    func addFriend(email: String) {
-        print("Adding friend by email: \(email)")
+    // STUB: Add a friend by ID.
+    // TODO: Decide whether to use user ID or email for friend lookup before hooking to backend.
+    func addFriend(id: String) {
+        print("Adding friend with ID: \(id)")
         // TODO: Implement actual API call
     }
 

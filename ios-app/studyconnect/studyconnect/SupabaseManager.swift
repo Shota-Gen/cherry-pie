@@ -11,7 +11,12 @@ class SupabaseManager: ObservableObject {
     
     let client = SupabaseClient(
         supabaseURL: URL(string: "https://gnupzytcsswejfvtifik.supabase.co")!,
-        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudXB6eXRjc3N3ZWpmdnRpZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjE5NTUsImV4cCI6MjA4NzM5Nzk1NX0.r3yj0WuNskL1qHVwKyvBl3OXZyociZYpBtkKzpeOaz8"
+        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudXB6eXRjc3N3ZWpmdnRpZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjE5NTUsImV4cCI6MjA4NzM5Nzk1NX0.r3yj0WuNskL1qHVwKyvBl3OXZyociZYpBtkKzpeOaz8",
+        options: SupabaseClientOptions(
+            auth: SupabaseClientOptions.AuthOptions(
+                emitLocalSessionAsInitialSession: true
+            )
+        )
     )
     
     @Published var session: Session? = nil
