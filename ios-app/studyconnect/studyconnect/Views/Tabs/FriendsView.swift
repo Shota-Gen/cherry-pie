@@ -22,13 +22,19 @@ struct FriendsView: View {
                 VStack(spacing: 0) {
                     // White top bar with Friends title and Add button
                     HStack {
+                        NavigationLink(destination: DeleteFriendsView()) {
+                            Image(systemName: "minus")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.red)
+                        }
+
                         Spacer()
-                        
+
                         Text("Friends")
                             .font(.system(size: 20, weight: .semibold))
-                        
+
                         Spacer()
-                        
+
                         NavigationLink(destination: AddFriendView()) {
                             Image(systemName: "plus")
                                 .font(.system(size: 16, weight: .semibold))
