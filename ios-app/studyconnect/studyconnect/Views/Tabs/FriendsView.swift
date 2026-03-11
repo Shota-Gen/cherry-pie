@@ -96,8 +96,10 @@ struct FriendsView: View {
                 switch route {
                 case .selectFriends:
                     SelectFriendsView()
-                case .findAvailability(let profiles):
-                    FindAvailabilityView(selectedFriends: profiles, path: $path)
+                case .sessionDetails(let profiles):
+                    SessionDetailsView(selectedFriends: profiles)
+                case .findAvailability(let config):
+                    FindAvailabilityView(config: config, path: $path)
                 }
             }
         }

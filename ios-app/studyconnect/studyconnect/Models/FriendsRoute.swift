@@ -11,5 +11,6 @@ import Foundation
 // reset programmatically (e.g., "Back to Home" from FindAvailabilityView).
 enum FriendsRoute: Hashable {
     case selectFriends
-    case findAvailability([UserProfile])
+    case sessionDetails([UserProfile])
+    case findAvailability(SessionConfig)
 }

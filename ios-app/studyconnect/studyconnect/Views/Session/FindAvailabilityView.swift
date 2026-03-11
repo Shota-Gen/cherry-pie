@@ -9,86 +9,108 @@ import SwiftUI
 import Auth
 
 struct FindAvailabilityView: View {
-    var selectedFriends: [UserProfile]
+    var config: SessionConfig
     @Binding var path: NavigationPath
 
     @EnvironmentObject var supabase: SupabaseManager
     @State private var service = SessionService()
-
-    @State private var studySpots: [StudySpot] = []
-    @State private var selectedSpotId: UUID? = nil
-    @State private var startTime = Date().roundedToNextHour()
-    @State private var endTime = Date().roundedToNextHour().addingTimeInterval(3600)
-    @State private var sessionGap: TimeInterval = 3600
+    @State private var slots: [TimeSlot] = []
+    @State private var selectedSlot: TimeSlot? = nil
     @State private var sessionSent = false
+
+    // Group slots by calendar day, sorted chronologically
+    private var slotsByDay: [(day: Date, slots: [TimeSlot])] {
+        var dict: [Date: [TimeSlot]] = [:]
+        for slot in slots {
+            let day = Calendar.current.startOfDay(for: slot.start)
+            dict[day, default: []].append(slot)
+        }
+        return dict.keys.sorted().map { day in
+            (day: day, slots: dict[day]!.sorted { $0.start < $1.start })
+        }
+    }
 
     var body: some View {
         ZStack {
             Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Form {
-                    Section("Session Time") {
-                        DatePicker("Start", selection: $startTime, displayedComponents: [.date, .hourAndMinute])
-                            .onChange(of: startTime) { _, newStart in
-                                endTime = newStart.addingTimeInterval(sessionGap)
-                            }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
 
-                        DatePicker("End", selection: $endTime, in: startTime..., displayedComponents: [.date, .hourAndMinute])
-                            .onChange(of: endTime) { _, newEnd in
-                                sessionGap = max(newEnd.timeIntervalSince(startTime), 0)
+                        // ── Info card ─────────────────────────────────────
+                        HStack(alignment: .bottom) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("INVITING")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundColor(.gray)
+                                stackedAvatars
                             }
-                    }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("DURATION")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundColor(.gray)
+                                Text("\(config.duration) \(config.duration == 1 ? "Hour" : "Hours")")
+                                    .font(.title3.weight(.bold))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(16)
 
-                    Section("Study Spot") {
-                        if studySpots.isEmpty {
-                            Text("Loading spots...")
-                                .foregroundColor(.gray)
+                        // ── Slot list ──────────────────────────────────────
+                        if slots.isEmpty {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 12) {
+                                    ProgressView()
+                                    Text("Finding slots…")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                            .padding(.top, 40)
                         } else {
-                            Picker("Location", selection: $selectedSpotId) {
-                                Text("None").tag(nil as UUID?)
-                                ForEach(studySpots) { spot in
-                                    Text(spot.name).tag(spot.spotId as UUID?)
+                            ForEach(slotsByDay, id: \.day) { group in
+                                VStack(alignment: .leading, spacing: 10) {
+                                    dayHeader(for: group.day)
+                                    ForEach(group.slots) { slot in
+                                        slotCard(slot)
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    Section("Invites") {
-                        ForEach(selectedFriends) { friend in
-                            Text(friend.displayTitle)
-                        }
+                        Color.clear.frame(height: 80)
                     }
+                    .padding()
                 }
-                .scrollContentBackground(.hidden)
 
-                Button {
-                    guard let spotId = selectedSpotId,
-                          let userId = supabase.session?.user.id else { return }
-                    service.createSession(
-                        createdBy: userId,
-                        spotId: spotId,
-                        starts: startTime,
-                        ends: endTime,
-                        invitedUsers: selectedFriends.map(\.userId)
-                    )
-                    sessionSent = true
-                } label: {
-                    Text(selectedFriends.count == 1 ? "Send Invite" : "Send Invites")
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                // ── Send bar ───────────────────────────────────────────────
+                HStack {
+                    Button { sendInvites() } label: {
+                        HStack(spacing: 8) {
+                            Text(config.selectedFriends.count == 1 ? "Send Invite" : "Send Invites")
+                            Image(systemName: "envelope.fill")
+                        }
+                        .font(.headline.weight(.semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(selectedSpotId != nil ? Color.blue : Color.gray)
+                        .background(selectedSlot != nil ? Color.blue : Color.gray)
                         .cornerRadius(10)
                         .padding(.horizontal)
-                        .padding(.bottom, 16)
+                        .padding(.vertical, 12)
+                    }
+                    .disabled(selectedSlot == nil)
                 }
-                .disabled(selectedSpotId == nil)
+                .background(Color.white)
             }
 
-            // Dimmed overlay + confirmation card
+            // ── Confirmation overlay ───────────────────────────────────────
             if sessionSent {
                 Color.black.opacity(0.45)
                     .ignoresSafeArea()
@@ -98,9 +120,8 @@ struct FindAvailabilityView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 72))
                         .foregroundStyle(.green)
-                    Text(selectedFriends.count == 1 ? "Invite sent successfully!" : "Invites sent successfully!")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                    Text(config.selectedFriends.count == 1 ? "Invite sent successfully!" : "Invites sent successfully!")
+                        .font(.title2.weight(.bold))
                     Text("Your friends have been notified")
                         .font(.subheadline)
                         .foregroundColor(.gray)
@@ -109,8 +130,7 @@ struct FindAvailabilityView: View {
                         path = NavigationPath()
                     } label: {
                         Text("Back to Home")
-                            .font(.headline)
-                            .fontWeight(.semibold)
+                            .font(.headline.weight(.semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -131,23 +151,117 @@ struct FindAvailabilityView: View {
         .navigationTitle("Find Availability")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            studySpots = service.getStudySpots()
-            selectedSpotId = studySpots.first?.spotId
+            slots = service.getSuggestedSlots(config: config)
         }
     }
-}
 
-private extension Date {
-    func roundedToNextHour() -> Date {
+    // MARK: - Subviews
+
+    private var stackedAvatars: some View {
+        // Negative spacing creates ~30% overlap: size 36, spacing -11 → 11/36 ≈ 30%
+        HStack(spacing: -11) {
+            ForEach(Array(config.selectedFriends.prefix(5))) { friend in
+                AvatarView(name: friend.displayTitle, imageURL: friend.profileImage, size: 36)
+                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func dayHeader(for date: Date) -> some View {
+        let (primary, secondary) = dayLabelParts(date)
+        HStack(spacing: 6) {
+            Text(primary)
+                .font(.headline.weight(.semibold))
+                .foregroundColor(.primary)
+            if let secondary {
+                Text(secondary)
+                    .font(.headline)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    private func slotCard(_ slot: TimeSlot) -> some View {
+        let isSelected = selectedSlot?.id == slot.id
+        Button { selectedSlot = slot } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(timeRange(from: slot.start, to: slot.end))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+
+                if slot.isEveryoneFree {
+                    Label("Everyone is free", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(.green)
+                } else {
+                    let avail = slot.availableFriends.count
+                    let total = config.selectedFriends.count
+                    Label("\(avail)/\(total) friends available", systemImage: "exclamationmark.circle.fill")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(Color(red: 0.85, green: 0.6, blue: 0.0))
+                    Text("Missing: \(slot.busyFriends.map(\.displayTitle).joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Helpers
+
+    private func dayLabelParts(_ date: Date) -> (String, String?) {
         let cal = Calendar.current
-        var comps = cal.dateComponents([.year, .month, .day, .hour], from: self)
-        comps.hour = (comps.hour ?? 0) + 1
-        comps.minute = 0
-        return cal.date(from: comps) ?? self
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMM d"
+        let dateStr = fmt.string(from: date)
+        if cal.isDateInToday(date)    { return ("Today", dateStr) }
+        if cal.isDateInTomorrow(date) { return ("Tomorrow", dateStr) }
+        return (dateStr, nil)
+    }
+
+    private func timeRange(from start: Date, to end: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "h:mm a"
+        return "\(fmt.string(from: start)) – \(fmt.string(from: end))"
+    }
+
+    private func sendInvites() {
+        guard let slot = selectedSlot,
+              let userId = supabase.session?.user.id else { return }
+        service.createSession(
+            createdBy: userId,
+            spotId: nil,
+            starts: slot.start,
+            ends: slot.end,
+            invitedUsers: config.selectedFriends.map(\.userId)
+        )
+        sessionSent = true
     }
 }
 
 #Preview {
-    FindAvailabilityView(selectedFriends: [], path: .constant(NavigationPath()))
-        .environmentObject(SupabaseManager.shared)
+    let config = SessionConfig(
+        selectedFriends: [],
+        startDate: Date(),
+        endDate: Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date(),
+        duration: 2,
+        earliestStart: Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date(),
+        latestEnd: Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date()
+    )
+    NavigationStack {
+        FindAvailabilityView(config: config, path: .constant(NavigationPath()))
+            .environmentObject(SupabaseManager.shared)
+    }
 }

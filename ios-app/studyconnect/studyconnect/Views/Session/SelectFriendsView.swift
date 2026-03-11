@@ -63,8 +63,11 @@ struct SelectFriendsView: View {
                     }
                 }
 
-                NavigationLink(value: FriendsRoute.findAvailability(selectedProfiles)) {
-                    Text("Next")
+                NavigationLink(value: FriendsRoute.sessionDetails(selectedProfiles)) {
+                    HStack(spacing: 6) {
+                        Text("Session Details")
+                        Image(systemName: "arrow.right")
+                    }
                         .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
