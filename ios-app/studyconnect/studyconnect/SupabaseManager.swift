@@ -34,7 +34,7 @@ class SupabaseManager: ObservableObject {
     @MainActor
     func signInWithGoogle() async {
         do {
-            guard let rootVC = await UIApplication.shared.connectedScenes
+            guard let rootVC = UIApplication.shared.connectedScenes
                 .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
                 .first else { return }
 

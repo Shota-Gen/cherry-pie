@@ -168,8 +168,8 @@ struct SessionDetailsView: View {
             DateRangePickerSheet(startDate: $startDate, endDate: $endDate)
         }
         // Clamp latestEnd whenever the minimum changes
-        .onChange(of: earliestStart) { _ in clampLatestEnd() }
-        .onChange(of: duration) { _ in clampLatestEnd() }
+        .onChange(of: earliestStart) { clampLatestEnd() }
+        .onChange(of: duration) { clampLatestEnd() }
     }
 
     private func clampLatestEnd() {
