@@ -27,3 +27,4 @@ ios-app/Exported*/*
 
 # --- Docker ---
 .docker-compose.override.yml
+cherry-pie.wiki/
