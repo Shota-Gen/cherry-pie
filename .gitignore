@@ -23,8 +23,8 @@ DerivedData/
 !default.xcworkspace
 xcuserdata/
 
-ios-app/Exported*/*
-
 # --- Docker ---
 .docker-compose.override.yml
+
+# --- Wiki ---
 cherry-pie.wiki/
