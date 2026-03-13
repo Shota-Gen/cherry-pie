@@ -12,7 +12,7 @@ struct FindAvailabilityView: View {
     var config: SessionConfig
     @Binding var path: NavigationPath
 
-    @EnvironmentObject var supabase: SupabaseManager
+    @Environment(\.supabaseManager) var supabase
     @State private var service = SessionService()
     @State private var slots: [TimeSlot] = []
     @State private var selectedSlot: TimeSlot? = nil
@@ -31,6 +31,7 @@ struct FindAvailabilityView: View {
     }
 
     var body: some View {
+        // ZStack needed: layering background color with scrollable content area
         ZStack {
             Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
 
@@ -262,6 +263,6 @@ struct FindAvailabilityView: View {
     )
     NavigationStack {
         FindAvailabilityView(config: config, path: .constant(NavigationPath()))
-            .environmentObject(SupabaseManager.shared)
+            .environment(\.supabaseManager, SupabaseManager.shared)
     }
 }

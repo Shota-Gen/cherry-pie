@@ -9,9 +9,10 @@ import SwiftUI
 import Auth
 
 struct LoginView: View {
-    @EnvironmentObject var supabase: SupabaseManager
+    @Environment(\.supabaseManager) var supabase
 
     var body: some View {
+        // ZStack needed: layering gradient background with foreground content
         ZStack {
             LinearGradient(
                 colors: [Color.white, Color(red: 0.94, green: 0.96, blue: 1.0)],

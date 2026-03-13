@@ -9,13 +9,10 @@ import SwiftUI
 
 @main
 struct studyconnectApp: App {
-    @StateObject var supabaseManager = SupabaseManager.shared
-
     var body: some Scene {
         WindowGroup {
-            // Point this back to ContentView
             ContentView()
-                .environmentObject(supabaseManager)
+                .environment(\.supabaseManager, SupabaseManager.shared)
         }
     }
 }

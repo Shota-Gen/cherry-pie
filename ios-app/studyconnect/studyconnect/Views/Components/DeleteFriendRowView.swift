@@ -34,6 +34,7 @@ struct DeleteFriendRowView: View {
                     .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
             }
 
+            // ZStack needed: layering circle stroke with filled background and delete icon
             ZStack {
                 Circle()
                     .stroke(Color.red, lineWidth: 1.5)

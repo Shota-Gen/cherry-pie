@@ -9,7 +9,7 @@ import SwiftUI
 import Auth
 
 struct EditProfileView: View {
-    @EnvironmentObject var supabase: SupabaseManager
+    @Environment(\.supabaseManager) var supabase
     @Environment(\.dismiss) private var dismiss
     @State private var service = ProfileService()
     @State private var loadedProfile = UserProfile.blank()
@@ -21,6 +21,7 @@ struct EditProfileView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
+                // ZStack(alignment: .bottomTrailing) needed: positioning camera button at bottom-right corner of avatar
                 ZStack(alignment: .bottomTrailing) {
                     AvatarView(name: displayName, imageURL: profileImage, size: 112)
                         .overlay(
@@ -174,5 +175,5 @@ struct EditProfileView: View {
 
 #Preview {
     EditProfileView()
-        .environmentObject(SupabaseManager.shared)
+        .environment(\.supabaseManager, SupabaseManager.shared)
 }

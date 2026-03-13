@@ -14,11 +14,12 @@ struct AddFriendView: View {
     @State private var service = FriendsService()
 
     var body: some View {
+        // ZStack needed: layering background color with modal content and overlay for success state
         ZStack {
             Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Title bar
+                // Title bar - ZStack needed: centering title while positioning close button on the left
                 ZStack {
                     Text("Add Friend")
                         .font(.system(size: 20, weight: .semibold))
@@ -86,7 +87,7 @@ struct AddFriendView: View {
                     .transition(.opacity)
 
                 VStack(spacing: 20) {
-                    // Green checkmark circle
+                    // Green checkmark circle - ZStack needed: layering circle background with checkmark icon
                     ZStack {
                         Circle()
                             .fill(Color.green.opacity(0.15))

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var supabase: SupabaseManager
+    @Environment(\.supabaseManager) var supabase
 
     var body: some View {
         if supabase.session != nil {

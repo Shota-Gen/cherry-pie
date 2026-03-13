@@ -22,12 +22,13 @@ struct DeleteFriendsView: View {
     @State private var selectedFriendIDs: Set<UUID> = []
 
     var body: some View {
+        // ZStack needed: layering background color with content and top navigation bar
         ZStack {
             Color(red: 0.95, green: 0.95, blue: 0.95)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar
+                // Top bar - ZStack needed: centering title while positioning cancel button on the left
                 ZStack {
                     Text("Friends")
                         .font(.system(size: 20, weight: .semibold))

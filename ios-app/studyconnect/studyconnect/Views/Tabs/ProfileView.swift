@@ -10,7 +10,7 @@ import Auth
 import UIKit
 
 struct ProfileView: View {
-    @EnvironmentObject var supabase: SupabaseManager
+    @Environment(\.supabaseManager) var supabase
     @State private var service = ProfileService()
     @State private var profile = UserProfile.blank()
     @State private var isGhostModeEnabled = true
@@ -32,7 +32,8 @@ struct ProfileView: View {
                         Button {
                             UIPasteboard.general.string = userIDText
                             didCopyUID = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                            Task {
+                                try? await Task.sleep(nanoseconds: 1_400_000_000)
                                 didCopyUID = false
                             }
                         } label: {

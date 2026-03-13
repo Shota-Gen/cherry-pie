@@ -2,11 +2,12 @@ import Foundation
 import Supabase
 import UIKit
 import SwiftUI
-import Combine
+import Observation
 import GoogleSignIn
 import CryptoKit
 
-class SupabaseManager: ObservableObject {
+@Observable
+class SupabaseManager {
     static let shared = SupabaseManager()
     
     let client = SupabaseClient(
@@ -19,7 +20,7 @@ class SupabaseManager: ObservableObject {
         )
     )
     
-    @Published var session: Session? = nil
+    var session: Session? = nil
     
     init() {
         Task {
@@ -162,6 +163,20 @@ struct AnyEncodable: Encodable {
         try _encode(encoder)
     }
 }
+
+// MARK: - Environment Integration
+
+private struct SupabaseManagerKey: EnvironmentKey {
+    static let defaultValue: SupabaseManager = .shared
+}
+
+extension EnvironmentValues {
+    var supabaseManager: SupabaseManager {
+        get { self[SupabaseManagerKey.self] }
+        set { self[SupabaseManagerKey.self] = newValue }
+    }
+}
+
 
 
 

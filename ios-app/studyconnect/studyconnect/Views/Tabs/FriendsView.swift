@@ -14,6 +14,7 @@ struct FriendsView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
+            // ZStack needed: layering background color with foreground content and top navigation bar
             ZStack {
                 // Gray background
                 Color(red: 0.95, green: 0.95, blue: 0.95)

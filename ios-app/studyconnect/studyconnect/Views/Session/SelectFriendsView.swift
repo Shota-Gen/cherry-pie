@@ -14,12 +14,13 @@ struct SelectFriendsView: View {
     @State private var selectedFriendIDs: Set<UUID> = []
 
     var body: some View {
+        // ZStack needed: layering background color with title bar and scrollable content
         ZStack {
             Color(red: 0.95, green: 0.95, blue: 0.95)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Custom white top bar
+                // Custom white top bar - ZStack needed: centering title while positioning close button on the left
                 ZStack {
                     Text("Select Friends")
                         .font(.system(size: 20, weight: .semibold))

@@ -32,6 +32,7 @@ struct SessionDetailsView: View {
     }
 
     var body: some View {
+        // ZStack(alignment: .bottom) needed: positioning action button at bottom of scrollable content
         ZStack(alignment: .bottom) {
             Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
 
@@ -353,6 +354,7 @@ private struct RangeDayCell: View {
     }
 
     var body: some View {
+        // ZStack needed: layering range background color with day number and highlight circle
         ZStack {
             // Range corridor background (pill effect)
             if isInRange {

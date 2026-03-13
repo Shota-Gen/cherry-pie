@@ -8,7 +8,7 @@ import SwiftUI
 import MapKit
 
 struct MapView: View {
-    @StateObject private var locManager = LocationManager()
+    @State private var locManager = LocationManager()
     
     // This allows the map to start at the user's location and
     // stay interactive (panning/zooming won't be fought)
