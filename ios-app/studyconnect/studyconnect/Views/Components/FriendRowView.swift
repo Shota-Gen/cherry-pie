@@ -5,6 +5,7 @@
 //  Created by Jawad using Copilot on 3/11/26.
 //
 
+
 import SwiftUI
 
 /// Shared friend list row used in FriendsView and SelectFriendsView.
