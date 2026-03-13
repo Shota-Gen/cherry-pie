@@ -1,0 +1,95 @@
+//
+//  SessionInviteRowView.swift
+//  studyconnect
+//
+//
+
+import SwiftUI
+
+struct SessionInviteRowView: View {
+    let invite: SessionInvite
+    let onAccept: () -> Void
+    let onDecline: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                AvatarView(name: invite.fromUser.displayTitle, imageURL: invite.fromUser.profileImage, size: 44)
+                    .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(invite.fromUser.displayTitle)
+                        .font(.body)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Text("Invited you to study")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                Text(invite.createdTimeAgo)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "clock.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+
+                Text("\(invite.dayLabel), \(invite.timeRange)")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.gray)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    onDecline()
+                } label: {
+                    Text("Decline")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+                        .cornerRadius(8)
+                }
+
+                Button {
+                    onAccept()
+                } label: {
+                    Text("Accept")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+    }
+}
+
+#Preview {
+    SessionInviteRowView(
+        invite: SessionInvite(
+            id: UUID(),
+            fromUser: UserProfile(userId: UUID(), displayName: "Leo Messi", email: "leo@umich.edu"),
+            startTime: Calendar.current.date(bySettingHour: 14, minute: 0, second: 0, of: Date()) ?? Date(),
+            endTime: Calendar.current.date(bySettingHour: 17, minute: 0, second: 0, of: Date()) ?? Date(),
+            createdAt: Date(timeIntervalSinceNow: -120)
+        ),
+        onAccept: {},
+        onDecline: {}
+    )
+}

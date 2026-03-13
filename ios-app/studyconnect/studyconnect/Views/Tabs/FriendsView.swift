@@ -11,31 +11,31 @@ struct FriendsView: View {
     @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
     @State private var path = NavigationPath()
+    @State private var pendingInvites: [SessionInvite] = []
+    @State private var inviteService = SessionInviteService()
+    @State private var showAcceptedModal = false
+    @State private var acceptedInvite: SessionInvite?
 
     var body: some View {
         NavigationStack(path: $path) {
-            // ZStack needed: layering background color with foreground content and top navigation bar
             ZStack {
-                // Gray background
+                // 1. Fixed Background Color
                 Color(red: 0.95, green: 0.95, blue: 0.95)
                     .ignoresSafeArea()
                 
+                // 2. Main Content Wrapper
                 VStack(spacing: 0) {
-                    // White top bar with Friends title and Add button
+                    // White top bar
                     HStack {
                         NavigationLink(destination: DeleteFriendsView()) {
                             Image(systemName: "minus")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.red)
                         }
-
                         Spacer()
-
                         Text("Friends")
                             .font(.system(size: 20, weight: .semibold))
-
                         Spacer()
-
                         NavigationLink(destination: AddFriendView()) {
                             Image(systemName: "plus")
                                 .font(.system(size: 16, weight: .semibold))
@@ -45,16 +45,13 @@ struct FriendsView: View {
                     .padding()
                     .background(Color.white)
                     
-                    // Scrollable friends list with top button
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
-                            // Create New Session Button
                             NavigationLink(value: FriendsRoute.selectFriends) {
                                 HStack(spacing: 12) {
                                     Image(systemName: "calendar")
                                         .font(.system(size: 18, weight: .semibold))
                                         .foregroundColor(.blue)
-                                    
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Create New")
                                             .font(.body)
@@ -64,9 +61,7 @@ struct FriendsView: View {
                                             .font(.caption)
                                             .foregroundColor(.gray)
                                     }
-                                    
                                     Spacer()
-                                    
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 14, weight: .semibold))
                                         .foregroundColor(.gray)
@@ -77,6 +72,37 @@ struct FriendsView: View {
                             }
                             .padding(.horizontal)
                             .padding(.top, 12)
+
+                            if !pendingInvites.isEmpty {
+                                Text("PENDING INVITES")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.gray)
+                                    .padding(.horizontal)
+                                    .padding(.top, 12)
+
+                                VStack(spacing: 12) {
+                                    ForEach(pendingInvites) { invite in
+                                        SessionInviteRowView(
+                                            invite: invite,
+                                            onAccept: {
+                                                acceptedInvite = invite
+                                                inviteService.acceptInvite(inviteId: invite.id)
+                                                pendingInvites.removeAll { $0.id == invite.id }
+                                                // Trigger modal with animation
+                                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                                    showAcceptedModal = true
+                                                }
+                                            },
+                                            onDecline: {
+                                                inviteService.declineInvite(inviteId: invite.id)
+                                                pendingInvites.removeAll { $0.id == invite.id }
+                                            }
+                                        )
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
                             
                             Text("Nearby Friends")
                                 .font(.subheadline)
@@ -95,9 +121,33 @@ struct FriendsView: View {
                         }
                     }
                 }
+                // --- THIS BLURS ONLY THE BACKGROUND CONTENT ---
+                .blur(radius: showAcceptedModal ? 10 : 0)
+                .allowsHitTesting(!showAcceptedModal) // Disable interaction when modal is up
+
+                // 3. Custom Modal Overlay
+                if showAcceptedModal, let invite = acceptedInvite {
+                    // Dimmer overlay
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            withAnimation { showAcceptedModal = false }
+                        }
+
+                    // Modal view
+                    SessionAcceptedModal(
+                        isPresented: $showAcceptedModal,
+                        invitingUser: invite.fromUser,
+                        sessionDate: invite.startTime
+                    )
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    .zIndex(1)
+                }
             }
             .onAppear {
                 friends = service.getFriendsList()
+                pendingInvites = inviteService.getPendingInvites()
             }
             .navigationDestination(for: FriendsRoute.self) { route in
                 switch route {
@@ -111,8 +161,4 @@ struct FriendsView: View {
             }
         }
     }
-}
-
-#Preview {
-    FriendsView()
 }
