@@ -15,12 +15,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>&quot;We need your location to show you nearby study zones and friends.&quot;
-&quot;We need your location to show you nearby study zones and friends.&quot;
-&quot;We need your location to show you nearby study zones and friends.&quot;</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Camera access is required to display AR navigation overlays.</string>
 	<key>GIDClientID</key>
 	<string>592651263718-g5bn51n8i5jbqh6nr91et13er4v2qtdf.apps.googleusercontent.com</string>
 </dict>

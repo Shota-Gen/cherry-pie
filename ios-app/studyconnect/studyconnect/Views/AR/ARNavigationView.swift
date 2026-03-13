@@ -8,6 +8,8 @@
 import SwiftUI
 import RealityKit
 import ARKit
+import UIKit
+import Combine
 
 struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
@@ -18,7 +20,7 @@ struct ARNavigationView: View {
             Color.black
                 .ignoresSafeArea(edges: .all)
 
-            ARViewContainer()
+            ARViewContainer(friend: friend)
                 .ignoresSafeArea(edges: .all)
 
             VStack(spacing: 0) {
@@ -143,6 +145,12 @@ struct ARNavigationView: View {
 }
 
 private struct ARViewContainer: UIViewRepresentable {
+    let friend: UserProfile
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
         arView.automaticallyConfigureSession = true
@@ -154,11 +162,97 @@ private struct ARViewContainer: UIViewRepresentable {
 
         arView.session.run(config, options: [])
 
-        // A simple virtual indicator can be added later. For now, show camera feed.
+        // Place a simple billboard in front of the user representing the friend.
+        let anchor = AnchorEntity(world: [0, 0, -1.2])
+
+        let planeSize: Float = 0.28
+        let plane = ModelEntity(mesh: .generatePlane(width: planeSize, height: planeSize), materials: [SimpleMaterial(color: .white, isMetallic: false)])
+        anchor.addChild(plane)
+        arView.scene.addAnchor(anchor)
+
+        // Make the plane always face the camera.
+        let subscription = arView.scene.subscribe(to: SceneEvents.Update.self) { _ in
+            let cameraPosition = arView.cameraTransform.translation
+            plane.look(at: cameraPosition, from: plane.position, relativeTo: nil)
+        }
+        context.coordinator.subscriptions.append(subscription)
+
+        Task { [weak arView] in
+            guard let cgImage = billboardImage(for: friend).cgImage else { return }
+
+            let options = TextureResource.CreateOptions(semantic: .color)
+            if let texture = try? await TextureResource.generate(from: cgImage, options: options) {
+                var material = SimpleMaterial(color: .white, isMetallic: false)
+                material.baseColor = .texture(texture)
+                plane.model?.materials = [material]
+            }
+        }
+
         return arView
     }
 
     func updateUIView(_ uiView: ARView, context: Context) { }
+
+    class Coordinator {
+        var subscriptions: [Cancellable] = []
+    }
+
+    private func billboardImage(for friend: UserProfile) -> UIImage {
+        let size = CGSize(width: 512, height: 512)
+        let renderer = UIGraphicsImageRenderer(size: size)
+
+        return renderer.image { ctx in
+            let rect = CGRect(origin: .zero, size: size)
+
+            UIColor(white: 0, alpha: 0.45).setFill()
+            ctx.fill(rect)
+
+            let cardRect = rect.insetBy(dx: 32, dy: 40)
+            let cardPath = UIBezierPath(roundedRect: cardRect, cornerRadius: 40)
+            UIColor(white: 1, alpha: 0.18).setFill()
+            cardPath.fill()
+
+            let targetText = "TARGET"
+            let targetAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 42),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.85)
+            ]
+            let targetSize = targetText.size(withAttributes: targetAttributes)
+            let targetOrigin = CGPoint(x: cardRect.midX - targetSize.width / 2, y: cardRect.minY + 24)
+            targetText.draw(at: targetOrigin, withAttributes: targetAttributes)
+
+            let avatarDiameter: CGFloat = 180
+            let avatarOrigin = CGPoint(x: cardRect.midX - avatarDiameter / 2, y: targetOrigin.y + targetSize.height + 18)
+            let avatarRect = CGRect(origin: avatarOrigin, size: CGSize(width: avatarDiameter, height: avatarDiameter))
+            let avatarPath = UIBezierPath(ovalIn: avatarRect)
+            UIColor(white: 1, alpha: 0.25).setFill()
+            avatarPath.fill()
+
+            let initials: String = {
+                let parts = friend.displayTitle.split(separator: " ")
+                let first = parts.first?.prefix(1) ?? ""
+                let second = parts.dropFirst().first?.prefix(1) ?? ""
+                return (first + second).uppercased()
+            }()
+
+            let initialsAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 72, weight: .semibold),
+                .foregroundColor: UIColor.white
+            ]
+            let initialsSize = initials.size(withAttributes: initialsAttributes)
+            let initialsOrigin = CGPoint(x: avatarRect.midX - initialsSize.width / 2, y: avatarRect.midY - initialsSize.height / 2)
+            initials.draw(at: initialsOrigin, withAttributes: initialsAttributes)
+
+            let nameAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 30, weight: .semibold),
+                .foregroundColor: UIColor.white
+            ]
+            let name = friend.displayTitle
+            let nameSize = name.size(withAttributes: nameAttributes)
+            let nameOrigin = CGPoint(x: cardRect.midX - nameSize.width / 2, y: avatarRect.maxY + 18)
+            name.draw(at: nameOrigin, withAttributes: nameAttributes)
+        }
+    }
 }
 
 private struct BlurView: UIViewRepresentable {

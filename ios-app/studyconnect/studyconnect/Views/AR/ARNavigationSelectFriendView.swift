@@ -6,13 +6,23 @@
 //
 
 import SwiftUI
+import AVFoundation
+import UIKit
 
 struct ARNavigationSelectFriendView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
     @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
     @State private var selectedFriendID: UUID? = nil
     @State private var navigateToAR = false
+
+    @State private var showCameraPermissionAlert = false
+    @State private var showCameraSettingsAlert = false
+    @State private var cameraPermissionMessage = ""
+
+    private let permissionService = ARCameraPermissionService()
 
     var body: some View {
         ZStack {
@@ -79,7 +89,7 @@ struct ARNavigationSelectFriendView: View {
                 .hidden()
 
                 Button {
-                    navigateToAR = true
+                    startARNavigation()
                 } label: {
                     HStack(spacing: 12) {
                         ZStack {
@@ -118,6 +128,52 @@ struct ARNavigationSelectFriendView: View {
             if friends.isEmpty {
                 friends = service.getSuggestedFriends()
             }
+        }
+        .alert("Camera Access Required", isPresented: $showCameraPermissionAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(cameraPermissionMessage)
+        }
+        .alert("Camera Access Denied", isPresented: $showCameraSettingsAlert) {
+            Button("Open Settings") {
+                guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                openURL(settingsURL)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("To use AR navigation, enable camera access in Settings.")
+        }
+    }
+
+    private func startARNavigation() {
+        guard canStart else { return }
+
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            permissionService.recordPermissionGranted(true)
+            navigateToAR = true
+
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    permissionService.recordPermissionGranted(granted)
+                    if granted {
+                        navigateToAR = true
+                    } else {
+                        cameraPermissionMessage = "We need camera access to show AR navigation."
+                        showCameraPermissionAlert = true
+                    }
+                }
+            }
+
+        case .denied, .restricted:
+            cameraPermissionMessage = "When camera access is denied, AR navigation cannot run. Please update permissions in Settings."
+            showCameraSettingsAlert = true
+
+        @unknown default:
+            cameraPermissionMessage = "Unable to determine camera permission status."
+            showCameraPermissionAlert = true
         }
     }
 
