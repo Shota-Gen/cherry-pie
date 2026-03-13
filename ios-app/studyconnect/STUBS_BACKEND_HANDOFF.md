@@ -26,13 +26,34 @@ File: `ios-app/studyconnect/studyconnect/Services/FriendsService.swift`
 
 File: `ios-app/studyconnect/studyconnect/Services/ProfileService.swift`
 
-1. `updateProfile(_ profile: UserProfile)`
-   - Hook to: backend endpoint / Supabase upsert to save profile edits.
-   - Triggered from: `Views/Profile/EditProfileView.swift`.
+1. `fetchProfile(email: String?) -> UserProfile`
+   - Hook to: backend endpoint / Supabase query to fetch user profile by email.
+   - SQL: `SELECT * FROM public.users WHERE email = ?`
+   - Triggered from: `Views/Tabs/ProfileView.swift` (onAppear) and `Views/Profile/EditProfileView.swift` (onAppear).
+   - Returns: full `UserProfile` object with displayName, major, universityYear, profileImage, isInvisible, etc.
 
-2. `fetchProfileFromAPIStub() -> UserProfile?`
-   - Hook to: backend endpoint to fetch the signed-in user's profile.
-   - Replace the stub response mapping with real API data.
+2. `fetchProfileByID(userID: String) -> UserProfile`
+   - Hook to: backend endpoint / Supabase query to fetch user profile by user ID.
+   - SQL: `SELECT * FROM public.users WHERE user_id = ?`
+   - Alternative fetch method; currently unused but available for direct UUID lookups.
+   - Returns: full `UserProfile` object.
+
+3. `updateProfile(_ profile: UserProfile)`
+   - Hook to: backend endpoint / Supabase update to save profile edits.
+   - SQL: `PATCH /profiles/{user_id}` with fields: displayName, major, universityYear, profileImage.
+   - Triggered from: `Views/Profile/EditProfileView.swift` Save Changes button.
+
+4. `updateGhostMode(enabled: Bool, userID: String)`
+   - Hook to: backend endpoint to toggle invisibility / location visibility.
+   - SQL: `PATCH /profiles/{user_id}` with field: `{ isInvisible: enabled }`
+   - Triggered from: `Views/Tabs/ProfileView.swift` Ghost Mode toggle (purple).
+   - Real-time: toggle should immediately update backend when changed.
+
+5. `updatePushNotifications(enabled: Bool, userID: String)`
+   - Hook to: backend endpoint to toggle push notification preference.
+   - SQL: `PATCH /profiles/{user_id}` with field: `{ pushNotificationsEnabled: enabled }`
+   - Triggered from: `Views/Tabs/ProfileView.swift` Push Notifications toggle (yellow).
+   - Real-time: toggle should immediately update backend when changed.
 
 ## Sessions
 

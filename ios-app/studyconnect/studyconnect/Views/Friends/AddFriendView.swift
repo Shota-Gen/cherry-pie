@@ -47,7 +47,7 @@ struct AddFriendView: View {
                             .font(.caption.weight(.semibold))
                             .foregroundColor(.gray)
 
-                        TextField("e.g. 8492-AB-21", text: $uid)
+                        TextField("e.g. 84924562", text: $uid)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .padding(12)

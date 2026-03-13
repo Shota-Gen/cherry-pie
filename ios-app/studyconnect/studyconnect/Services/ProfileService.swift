@@ -8,25 +8,63 @@
 import Foundation
 
 class ProfileService {
-    // STUB: Fetch profile. Display name fallback: API → derived from email → blank.
+    // STUB: Fetch profile by email. Returns mock user data for development.
     func fetchProfile(email: String?) -> UserProfile {
-        var profile = fetchProfileFromAPIStub() ?? UserProfile.blank(email: email ?? "")
-        if profile.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            profile.displayName = email.flatMap { deriveDisplayName(from: $0) } ?? ""
-        }
-        if let email { profile.email = email }
-        return profile
+        // TODO: Replace with real Supabase fetch using email as query parameter.
+        return fetchProfileFromAPIStub(email: email)
     }
 
-    // STUB: Update current user's profile
+    // STUB: Fetch profile by user ID. Returns mock user data for development.
+    func fetchProfileByID(userID: String) -> UserProfile {
+        // TODO: Replace with real Supabase fetch using user_id as query parameter.
+        return fetchProfileFromAPIStub(userID: userID)
+    }
+
+    // STUB: Update current user's profile on backend.
     func updateProfile(_ profile: UserProfile) {
+        // TODO: Implement actual API call to PATCH /profiles/{user_id}
         print("Updating profile: \(profile)")
-        // TODO: Implement actual API call
     }
 
-    // STUB: Replace with real Supabase fetch.
-    private func fetchProfileFromAPIStub() -> UserProfile? {
-        return nil
+    // STUB: Update ghost mode (invisibility) setting for current user.
+    func updateGhostMode(enabled: Bool, userID: String) {
+        // TODO: Implement actual API call to PATCH /profiles/{user_id} with { isInvisible: enabled }
+        print("Updating ghost mode for user \(userID): \(enabled)")
+    }
+
+    // STUB: Update push notification preference for current user.
+    func updatePushNotifications(enabled: Bool, userID: String) {
+        // TODO: Implement actual API call to PATCH /profiles/{user_id} with { pushNotificationsEnabled: enabled }
+        print("Updating push notifications for user \(userID): \(enabled)")
+    }
+
+    /// STUB: Returns mock test profile data for development.
+    /// Replace with real Supabase query: SELECT * FROM public.users WHERE email = ? OR user_id = ?
+    private func fetchProfileFromAPIStub(email: String? = nil, userID: String? = nil) -> UserProfile {
+        // Mock data for testing
+        let mockUserID = UUID(uuidString: "849302") ?? UUID()
+        var profile = UserProfile(
+            userId: mockUserID,
+            displayName: "Alex Johnson",
+            email: email ?? "alex.johnson@example.com",
+            profileImage: "",
+            studySpot: "Fishbowl Library",
+            major: "Computer Science",
+            universityYear: 2,
+            isInvisible: false,
+            lastKnownLat: nil,
+            lastKnownLng: nil
+        )
+
+        // If email provided and doesn't match mock, optionally derive display name from email
+        if let providedEmail = email, providedEmail != profile.email {
+            profile.email = providedEmail
+            if let derived = deriveDisplayName(from: providedEmail) {
+                profile.displayName = derived
+            }
+        }
+
+        return profile
     }
 
     private func deriveDisplayName(from email: String) -> String? {
