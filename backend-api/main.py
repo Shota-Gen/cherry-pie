@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers.users import router as users_router
 from routers.studyspots import studyspots_router as studyspots_router
+from routers.sessions import router as sessions_router
 app = FastAPI(
     title="StudyConnect API",
     description="Backend API for the StudyConnect platform",
@@ -43,3 +44,4 @@ async def health():
 # -- Routers --
 app.include_router(studyspots_router)
 app.include_router(users_router)
+app.include_router(sessions_router)
