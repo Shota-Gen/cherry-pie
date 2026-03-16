@@ -8,17 +8,52 @@
 import Foundation
 
 class SessionService {
+    
+    // This will need to change later. Only for local testing purposes
+    private let studySpotsURL = URL(string: "http://localhost:8080/studyspots/v1/public/")!
 
-    // STUB: Returns all available study spots.
-    func getStudySpots() -> [StudySpot] {
-        return [
-            StudySpot(spotId: UUID(), name: "UGLI"),
-            StudySpot(spotId: UUID(), name: "Law Library"),
-            StudySpot(spotId: UUID(), name: "Ross Building"),
-            StudySpot(spotId: UUID(), name: "Duderstadt"),
-            StudySpot(spotId: UUID(), name: "Hatcher")
-        ]
-        // TODO: SELECT spot_id, name, is_active, created_at FROM public.study_spots WHERE is_active = TRUE
+    func getStudySpots() async -> [StudySpot] {
+        var request = URLRequest(url: studySpotsURL)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                print("Failed to fetch study spots: unexpected response")
+                return []
+            }
+
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let value = try container.decode(String.self)
+
+                let formatterWithFractionalSeconds = ISO8601DateFormatter()
+                formatterWithFractionalSeconds.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+                if let date = formatterWithFractionalSeconds.date(from: value) {
+                    return date
+                }
+
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime]
+
+                if let date = formatter.date(from: value) {
+                    return date
+                }
+
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date string: \(value)")
+            }
+
+            return try decoder.decode([StudySpot].self, from: data)
+        } catch {
+            print("Failed to fetch study spots: \(error.localizedDescription)")
+            return []
+        }
     }
 
     // STUB: Returns suggested study session slots.
