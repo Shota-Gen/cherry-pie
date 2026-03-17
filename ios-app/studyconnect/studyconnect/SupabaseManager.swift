@@ -25,31 +25,42 @@ class SupabaseManager {
     init() {
         Task {
             do {
-                self.session = try await client.auth.session
+                let sess = try await client.auth.session
+                await MainActor.run {
+                    self.session = sess
+                }
             } catch {
                 print("No active session found")
             }
         }
     }
 
-    @MainActor
     func signInWithGoogle() async {
         do {
-            guard let rootVC = UIApplication.shared.connectedScenes
-                .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
-                .first else { return }
-
             // 1. Generate a random 'nonce' string
             let rawNonce = String.randomNonce()
             let hashedNonce = sha256(rawNonce)
 
-            // 2. Pass the HASHED nonce to Google
-            let gidResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC, hint: nil, additionalScopes: nil, nonce: hashedNonce)
-            
+            // 2. Acquire a presenting view controller on the main actor
+            let rootVC: UIViewController? = await MainActor.run {
+                UIApplication.shared.connectedScenes
+                    .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
+                    .first
+            }
+            guard let rootVC else { return }
+
+            // 3. Present Google Sign-In (API runs on main actor)
+            let gidResult = try await GIDSignIn.sharedInstance.signIn(
+                withPresenting: rootVC,
+                hint: nil,
+                additionalScopes: nil,
+                nonce: hashedNonce
+            )
+
             guard let idToken = gidResult.user.idToken?.tokenString else { return }
             let accessToken = gidResult.user.accessToken.tokenString
 
-            // 3. Pass the RAW nonce to Supabase so it can verify the token
+            // 4. Exchange tokens with Supabase (no main actor required)
             let session = try await client.auth.signInWithIdToken(
                 credentials: .init(
                     provider: .google,
@@ -58,25 +69,28 @@ class SupabaseManager {
                     nonce: rawNonce
                 )
             )
-            
-            self.session = session
-            print("✅ Logged in: \(self.session?.user.email ?? "Unknown")")
+
+            // 5. Publish session change on main actor to keep UI updates safe
+            await MainActor.run {
+                self.session = session
+            }
+            print("✅ Logged in: \(session.user.email ?? "Unknown")")
             await linkDeviceToUser()
-            
+
         } catch {
             print("❌ Login failed: \(error.localizedDescription)")
         }
     }
 
-    @MainActor
     func linkDeviceToUser() async {
-        guard let userId = session?.user.id else {
+        let userId = await MainActor.run { self.session?.user.id }
+        guard let userId else {
             print("❌ No user logged in")
             return
         }
-        
+
         let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "unknown_ios_device"
-        
+
         do {
             try await client
                 .from("users")
@@ -89,32 +103,28 @@ class SupabaseManager {
         }
     }
     
-    @MainActor
     func updateLocation(latitude: Double, longitude: Double) async {
-        guard let userId = session?.user.id else { return }
-        
+        let userId = await MainActor.run { self.session?.user.id }
+        guard let userId else { return }
+
         do {
-            // Removed "last_seen" to match the actual database schema
             let updateData: [String: AnyEncodable] = [
                 "last_known_lat": AnyEncodable(latitude),
                 "last_known_lng": AnyEncodable(longitude)
-                // possible to add a last-seen field to supabase, so we
-                // can display elapsed time (ex: last seen location from 20 min ago)
             ]
-            
+
             try await client
                 .from("users")
                 .update(updateData)
                 .eq("user_id", value: userId)
                 .execute()
-                
+
             print("Location updated: \(latitude), \(longitude)")
         } catch {
             print("Location update failed: \(error.localizedDescription)")
         }
     }
 
-    @MainActor
     func signOut() async {
         do {
             try await client.auth.signOut()
@@ -122,8 +132,10 @@ class SupabaseManager {
             print("❌ Supabase sign out failed: \(error.localizedDescription)")
         }
 
-        GIDSignIn.sharedInstance.signOut()
-        session = nil
+        await MainActor.run {
+            GIDSignIn.sharedInstance.signOut()
+            self.session = nil
+        }
         print("✅ Signed out")
     }
 }
@@ -176,7 +188,5 @@ extension EnvironmentValues {
         set { self[SupabaseManagerKey.self] = newValue }
     }
 }
-
-
 
 
