@@ -29,6 +29,7 @@ class SupabaseManager {
                 await MainActor.run {
                     self.session = sess
                 }
+                await ensureUserRowExists()
             } catch {
                 print("No active session found")
             }
@@ -75,7 +76,8 @@ class SupabaseManager {
                 self.session = session
             }
             print("✅ Logged in: \(session.user.email ?? "Unknown")")
-            await linkDeviceToUser()
+            let nameHint = gidResult.user.profile?.name
+            await ensureUserRowExists(displayNameHint: nameHint)
 
         } catch {
             print("❌ Login failed: \(error.localizedDescription)")
@@ -83,23 +85,80 @@ class SupabaseManager {
     }
 
     func linkDeviceToUser() async {
-        let userId = await MainActor.run { self.session?.user.id }
+        await ensureUserRowExists()
+    }
+
+    func ensureUserRowExists(displayNameHint: String? = nil) async {
+        let (userId, email): (UUID?, String?) = await MainActor.run {
+            (self.session?.user.id, self.session?.user.email)
+        }
         guard let userId else {
-            print("❌ No user logged in")
             return
         }
 
         let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "unknown_ios_device"
 
         do {
+            // 1. See if a row already exists.
+            if var existing: SupabaseUserRow = try? await client
+                .from("users")
+                .select()
+                .eq("user_id", value: userId)
+                .single()
+                .execute()
+                .value
+            {
+                var update: [String: AnyEncodable] = [
+                    "device_id": AnyEncodable(deviceID)
+                ]
+
+                // One-time upgrade: if we have a Google name and the current display_name
+                // is empty or just the email-derived default, replace it with the Google name.
+                if let googleName = displayNameHint, !googleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let currentName = (existing.displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let emailDerived = email.flatMap { ProfileService.deriveDisplayName(from: $0) } ?? ""
+
+                    if currentName.isEmpty || currentName.caseInsensitiveCompare(emailDerived) == .orderedSame {
+                        update["display_name"] = AnyEncodable(googleName)
+                    }
+                }
+
+                try await client
+                    .from("users")
+                    .update(update)
+                    .eq("user_id", value: userId)
+                    .execute()
+                print("✅ Linked Device ID: \(deviceID)")
+                return
+            }
+
+            // 2. No existing row: create one, preferring Google name when available
+            let displayName = displayNameHint
+                ?? email.flatMap { ProfileService.deriveDisplayName(from: $0) }
+
+            let row = SupabaseUserRow(
+                userId: userId,
+                displayName: displayName,
+                email: email,
+                deviceId: deviceID,
+                isInvisible: nil,
+                lastKnownLat: nil,
+                lastKnownLng: nil,
+                currentFloor: nil,
+                createdAt: nil,
+                profileImage: nil,
+                studySpot: nil,
+                major: nil,
+                universityYear: nil
+            )
+
             try await client
                 .from("users")
-                .update(["device_id": deviceID])
-                .eq("user_id", value: userId)
+                .insert(row)
                 .execute()
-            print("✅ Linked Device ID: \(deviceID)")
+            print("✅ Created user row and linked Device ID: \(deviceID)")
         } catch {
-            print("❌ Update failed: \(error.localizedDescription)")
+            print("❌ ensureUserRowExists failed: \(error.localizedDescription)")
         }
     }
     

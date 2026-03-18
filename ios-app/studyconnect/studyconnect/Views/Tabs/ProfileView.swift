@@ -16,6 +16,8 @@ struct ProfileView: View {
     @State private var isGhostModeEnabled = true
     @State private var isPushNotificationsEnabled = true
     @State private var didCopyUID = false
+    @State private var isLoadingProfile = false
+    @State private var showingSignOutConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -114,8 +116,18 @@ struct ProfileView: View {
                             Toggle("", isOn: $isGhostModeEnabled)
                                 .labelsHidden()
                                 .tint(.purple)
-                                .onChange(of: isGhostModeEnabled) { oldValue, newValue in
-                                    service.updateGhostMode(enabled: newValue, userID: profile.userId.uuidString)
+                                .disabled(isLoadingProfile || supabase.session == nil)
+                                .onChange(of: isGhostModeEnabled) { _, newValue in
+                                    guard let userId = supabase.session?.user.id else { return }
+                                    Task {
+                                        do {
+                                            try await service.updateGhostMode(enabled: newValue, userId: userId)
+                                            profile.isInvisible = newValue
+                                        } catch {
+                                            isGhostModeEnabled = profile.isInvisible
+                                            print("Ghost mode update failed: \(error)")
+                                        }
+                                    }
                                 }
                         }
                         .padding(.horizontal, 16)
@@ -143,8 +155,10 @@ struct ProfileView: View {
                             Toggle("", isOn: $isPushNotificationsEnabled)
                                 .labelsHidden()
                                 .tint(.yellow)
-                                .onChange(of: isPushNotificationsEnabled) { oldValue, newValue in
-                                    service.updatePushNotifications(enabled: newValue, userID: profile.userId.uuidString)
+                                .disabled(isLoadingProfile || supabase.session == nil)
+                                .onChange(of: isPushNotificationsEnabled) { _, newValue in
+                                    guard let userId = supabase.session?.user.id else { return }
+                                    Task { await service.updatePushNotifications(enabled: newValue, userId: userId) }
                                 }
                         }
                         .padding(.horizontal, 16)
@@ -154,6 +168,22 @@ struct ProfileView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
                     }
+
+                    // Account actions
+                    Button {
+                        showingSignOutConfirmation = true
+                    } label: {
+                        Text("Sign Out")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(Color.red)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .shadow(color: Color.red.opacity(0.25), radius: 12, y: 8)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -162,20 +192,32 @@ struct ProfileView: View {
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                profile = service.fetchProfile(email: supabase.session?.user.email)
-                isGhostModeEnabled = profile.isInvisible
+            .task { await loadProfile() }
+            .confirmationDialog(
+                "Are you sure you want to sign out?",
+                isPresented: $showingSignOutConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Sign Out", role: .destructive) {
+                    Task {
+                        await supabase.signOut()
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
             }
         }
     }
 
     private var displayName: String {
         let title = profile.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? "Alex Johnson" : title
+        if !title.isEmpty { return title }
+        if let email = supabase.session?.user.email, !email.isEmpty { return email }
+        return isLoadingProfile ? "Loading..." : "Profile"
     }
 
     private var userIDText: String {
-        let uuidString = profile.userId.uuidString.replacingOccurrences(of: "-", with: "")
+        let uuid = supabase.session?.user.id ?? profile.userId
+        let uuidString = uuid.uuidString.replacingOccurrences(of: "-", with: "")
         return String(uuidString)
     }
 
@@ -223,6 +265,26 @@ struct ProfileView: View {
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
+    }
+
+    @MainActor
+    private func loadProfile() async {
+        guard let session = supabase.session else {
+            profile = .blank()
+            isGhostModeEnabled = false
+            return
+        }
+
+        isLoadingProfile = true
+        defer { isLoadingProfile = false }
+
+        do {
+            let p = try await service.fetchMyProfile(userId: session.user.id, fallbackEmail: session.user.email)
+            profile = p
+            isGhostModeEnabled = p.isInvisible
+        } catch {
+            print("Profile load failed: \(error)")
+        }
     }
 }
 
