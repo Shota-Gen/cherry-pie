@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -24,5 +29,9 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>StudyConnect uses your location to show you on the map and find nearby study spots.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The app uses your camera to show augmented reality navigation features when connecting with friends using UWB devices.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>The app uses your location to help find nearby friends using UWB devices.</string>
 </dict>
 </plist>
