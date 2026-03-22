@@ -10,12 +10,12 @@ import CryptoKit
 class SupabaseManager {
     static let shared = SupabaseManager()
     
-    #if DEBUG
-    // Local Supabase (via `supabase start`)
+    #if DEBUG && targetEnvironment(simulator)
+    // Simulator → local Supabase (via `supabase start`)
     private static let supabaseURL = URL(string: "http://localhost:54321")!
     private static let supabaseKey = "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"
     #else
-    // Production Supabase
+    // Physical device + Release → production Supabase
     private static let supabaseURL = URL(string: "https://gnupzytcsswejfvtifik.supabase.co")!
     private static let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudXB6eXRjc3N3ZWpmdnRpZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjE5NTUsImV4cCI6MjA4NzM5Nzk1NX0.r3yj0WuNskL1qHVwKyvBl3OXZyociZYpBtkKzpeOaz8"
     #endif
