@@ -21,10 +21,5 @@
 	<string>The app uses your camera to show augmented reality navigation features when connecting with friends using UWB devices.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>The app uses your location to show you on the app and find friends.</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
 </dict>
 </plist>
