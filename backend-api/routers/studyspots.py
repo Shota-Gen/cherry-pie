@@ -33,19 +33,6 @@ class UserLocation(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
-
-
-@studyspots_router.get("/v1/", status_code=status.HTTP_201_CREATED)
-def get_commands():
-    """
-    Get all available commands
-    """
-    return {
-        "commands": [
-            {"name": "/public/", "description": "Get all public study spots."},
-            {"name": "/containing_user/", "description": "Get study spots that the user is currently in."},
-        ]
-    }
     
 
 @studyspots_router.get("/v1/public/", status_code=status.HTTP_201_CREATED)

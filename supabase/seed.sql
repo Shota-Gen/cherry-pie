@@ -1,9 +1,30 @@
 -- Clear the table before seeding
 TRUNCATE public.study_spots, public.users CASCADE;
 
--- Insert into auth first
-INSERT INTO auth.users (id, email)
-VALUES ('6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a', 'sgen@umich.edu');
+-- Insert into auth first (GoTrue requires many non-null string columns)
+INSERT INTO auth.users (
+    id, email, aud, role, email_confirmed_at,
+    encrypted_password, confirmation_token, recovery_token,
+    email_change_token_new, email_change, raw_app_meta_data, raw_user_meta_data,
+    instance_id, created_at, updated_at
+)
+VALUES (
+    '6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a',
+    'sgen@umich.edu',
+    'authenticated',
+    'authenticated',
+    now(),
+    '',   -- encrypted_password
+    '',   -- confirmation_token
+    '',   -- recovery_token
+    '',   -- email_change_token_new
+    '',   -- email_change
+    '{"provider": "google", "providers": ["google"]}'::jsonb,
+    '{}'::jsonb,
+    '00000000-0000-0000-0000-000000000000',
+    now(),
+    now()
+);
 
 -- Insert Test Users
 INSERT INTO public.users (user_id, display_name, email, current_floor)
@@ -45,7 +66,7 @@ VALUES
               -83.73887781362887 42.27375307769964,
               -83.73889319089245 42.27398064212872,
               -83.73985170698981 42.27396167845754
-              ))', 4326);
+              ))', 4326)
     ),
     (
         'Duderstadt Center', 
