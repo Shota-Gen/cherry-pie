@@ -14,8 +14,8 @@ class StudySpotService {
     private let activeUsersURL = URL(string: "http://localhost:8080/studyspots/v1/active-users/")!
     #else
     // TODO: Replace with production API URL once deployed
-    private let studySpotsURL = URL(string: "http://localhost:8080/studyspots/v1/public/")!
-    private let activeUsersURL = URL(string: "http://localhost:8080/studyspots/v1/active-users/")!
+    private let studySpotsURL = URL(string: "https://cherry-pie-production.up.railway.app/studyspots/v1/public/")!
+    private let activeUsersURL = URL(string: "https://cherry-pie-production.up.railway.app/studyspots/v1/active-users/")!
     #endif
 
     func getActiveUsers() async -> [ActiveStudyUser] {
