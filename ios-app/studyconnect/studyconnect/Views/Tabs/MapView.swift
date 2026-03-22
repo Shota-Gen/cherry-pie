@@ -11,6 +11,9 @@ struct MapView: View {
     @State private var locManager = LocationManager()
     @State private var showARNavigationSheet = false
     @State private var showARNavigationBanner = true
+    @State private var studySpots: [StudySpot] = []
+    
+    private let sessionService = SessionService()
     
     // This allows the map to start at the user's location and
     // stay interactive (panning/zooming won't be fought)
@@ -21,14 +24,31 @@ struct MapView: View {
             Map(position: $position) {
                 UserAnnotation()
 
-                Annotation("UGLI", coordinate: CLLocationCoordinate2D(latitude: 42.2743, longitude: -83.7397)) {
-                    Image(systemName: "book.fill")
-                        .foregroundColor(.blue)
+                // Render each study spot as a polygon overlay
+                ForEach(studySpots) { spot in
+                    let coords = spot.polygonCoordinates
+                    if coords.count >= 3 {
+                        MapPolygon(coordinates: coords)
+                            .foregroundStyle(.blue.opacity(0.2))
+                            .stroke(.blue, lineWidth: 2)
+
+                        // Add a label at the centroid
+                        if let center = centroid(of: coords) {
+                            Annotation(spot.name, coordinate: center) {
+                                Image(systemName: "book.fill")
+                                    .foregroundColor(.blue)
+                                    .padding(6)
+                                    .background(.white.opacity(0.85))
+                                    .clipShape(Circle())
+                                    .shadow(radius: 2)
+                            }
+                        }
+                    }
                 }
             }
             .mapControls {
                 MapUserLocationButton()
-                MapCompass() // Shows the compass when rotating
+                MapCompass()
                 MapPitchToggle()
             }
 
@@ -47,6 +67,17 @@ struct MapView: View {
                     .background(Color.black.edgesIgnoringSafeArea(.all))
             }
         }
+        .task {
+            studySpots = await sessionService.getStudySpots()
+        }
+    }
+
+    /// Compute the centroid of a polygon for label placement
+    private func centroid(of coords: [CLLocationCoordinate2D]) -> CLLocationCoordinate2D? {
+        guard !coords.isEmpty else { return nil }
+        let lat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
+        let lng = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
+        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
     }
 }
 

@@ -35,16 +35,13 @@ class UserLocation(BaseModel):
 # ---------------------------------------------------------------------------
     
 
-@studyspots_router.get("/v1/public/", status_code=status.HTTP_201_CREATED)
+@studyspots_router.get("/v1/public/", status_code=status.HTTP_200_OK)
 def get_public_study_spots_coords(supabase: SupabaseDep):
     """
-    Get all public study spots.
+    Get all public study spots with their polygon coordinates.
     """
-    # -- Step 1: Fetch all users from public.users --
     try:
-        data = supabase.table("study_spots").select("*").execute()
-        #if data.error:
-        #   raise HTTPException(status_code=500, detail="Failed to fetch study spots")
+        data = supabase.rpc("get_study_spots_with_coordinates").execute()
         return data.data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

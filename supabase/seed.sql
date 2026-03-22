@@ -110,3 +110,28 @@ AS $$
           ST_SetSRID(ST_MakePoint(user_lon, user_lat), 4326)
       );
 $$;
+
+-- Returns every study spot with its full polygon coordinates as a JSON array
+-- Each coordinate is [longitude, latitude] to match GeoJSON convention
+CREATE OR REPLACE FUNCTION get_study_spots_with_coordinates()
+RETURNS TABLE (
+    spot_id uuid,
+    name text,
+    is_active boolean,
+    coordinates jsonb
+)
+LANGUAGE sql
+AS $$
+  SELECT
+      s.spot_id,
+      s.name,
+      s.is_active,
+      (
+        SELECT jsonb_agg(
+          jsonb_build_array(ST_X(geom), ST_Y(geom))
+          ORDER BY path
+        )
+        FROM ST_DumpPoints(s.geofence::geometry) AS dp(path, geom)
+      ) AS coordinates
+  FROM study_spots s;
+$$;

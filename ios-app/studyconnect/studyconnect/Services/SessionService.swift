@@ -9,8 +9,12 @@ import Foundation
 
 class SessionService {
     
-    // This will need to change later. Only for local testing purposes
+    #if DEBUG && targetEnvironment(simulator)
     private let studySpotsURL = URL(string: "http://localhost:8080/studyspots/v1/public/")!
+    #else
+    // TODO: Replace with production API URL once deployed
+    private let studySpotsURL = URL(string: "http://localhost:8080/studyspots/v1/public/")!
+    #endif
 
     func getStudySpots() async -> [StudySpot] {
         var request = URLRequest(url: studySpotsURL)
