@@ -9,56 +9,7 @@ import Foundation
 
 class SessionService {
     
-    #if DEBUG && targetEnvironment(simulator)
-    private let studySpotsURL = URL(string: "http://localhost:8080/studyspots/v1/public/")!
-    #else
-    // TODO: Replace with production API URL once deployed
-    private let studySpotsURL = URL(string: "http://localhost:8080/studyspots/v1/public/")!
-    #endif
 
-    func getStudySpots() async -> [StudySpot] {
-        var request = URLRequest(url: studySpotsURL)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
-                print("Failed to fetch study spots: unexpected response")
-                return []
-            }
-
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            decoder.dateDecodingStrategy = .custom { decoder in
-                let container = try decoder.singleValueContainer()
-                let value = try container.decode(String.self)
-
-                let formatterWithFractionalSeconds = ISO8601DateFormatter()
-                formatterWithFractionalSeconds.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-                if let date = formatterWithFractionalSeconds.date(from: value) {
-                    return date
-                }
-
-                let formatter = ISO8601DateFormatter()
-                formatter.formatOptions = [.withInternetDateTime]
-
-                if let date = formatter.date(from: value) {
-                    return date
-                }
-
-                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date string: \(value)")
-            }
-
-            return try decoder.decode([StudySpot].self, from: data)
-        } catch {
-            print("Failed to fetch study spots: \(error.localizedDescription)")
-            return []
-        }
-    }
 
     // STUB: Returns suggested study session slots.
     // - config: session parameters (date range, duration, time window, friends)

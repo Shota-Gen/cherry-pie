@@ -12,8 +12,9 @@ struct MapView: View {
     @State private var showARNavigationSheet = false
     @State private var showARNavigationBanner = true
     @State private var studySpots: [StudySpot] = []
+    @State private var activeUsers: [ActiveStudyUser] = []
     
-    private let sessionService = SessionService()
+    private let studySpotService = StudySpotService()
     
     // This allows the map to start at the user's location and
     // stay interactive (panning/zooming won't be fought)
@@ -45,6 +46,19 @@ struct MapView: View {
                         }
                     }
                 }
+
+                // Render active users inside study zones
+                ForEach(activeUsers) { user in
+                    Annotation(user.displayName, coordinate: user.coordinate) {
+                        Image(systemName: "person.fill")
+                            .foregroundColor(.white)
+                            .font(.system(size: 12, weight: .bold))
+                            .padding(6)
+                            .background(Color.green)
+                            .clipShape(Circle())
+                            .shadow(radius: 3)
+                    }
+                }
             }
             .mapControls {
                 MapUserLocationButton()
@@ -68,7 +82,15 @@ struct MapView: View {
             }
         }
         .task {
-            studySpots = await sessionService.getStudySpots()
+            studySpots = await studySpotService.getStudySpots()
+            activeUsers = await studySpotService.getActiveUsers()
+        }
+        .task(id: "refresh") {
+            // Refresh active users every 30 seconds
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                activeUsers = await studySpotService.getActiveUsers()
+            }
         }
     }
 
