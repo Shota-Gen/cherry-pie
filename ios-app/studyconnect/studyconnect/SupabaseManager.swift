@@ -188,7 +188,7 @@ class SupabaseManager {
                 .eq("user_id", value: userId)
                 .execute()
 
-            print("Location updated: \(latitude), \(longitude)")
+            //print("Location updated: \(latitude), \(longitude)")
         } catch {
             print("Location update failed: \(error.localizedDescription)")
         }

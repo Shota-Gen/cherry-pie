@@ -18,7 +18,7 @@ struct ARNavigationView: View {
             Color.black
                 .ignoresSafeArea(edges: .all)
 
-            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable)
+            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable, nearbyNavigation: $nearbyNavigation)
                 .ignoresSafeArea(edges: .all)
 
             // Direction arrow - points to target
@@ -35,10 +35,8 @@ struct ARNavigationView: View {
             }
         }
         .onAppear() {
-            print("entering AR mode")
         }
         .onDisappear() {
-            print("exiting AR mode")
         }
     }
 
@@ -175,24 +173,26 @@ private struct ARViewContainer: UIViewRepresentable {
     @Binding var bearingToTarget: Float
     @Binding var deviceHeading: Float
     @Binding var isHeadingAvailable: Bool
+    @Binding var nearbyNavigation: NearbyNavigationService!
+    //@Binding var arView: ARView
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
     func makeUIView(context: Context) -> ARView {
-        let arView = ARView(frame: .zero)
+        //let arView = ARView(frame: .zero)
         
         // Configure AR with heading alignment
-        let config = ARWorldTrackingConfiguration()
-        config.worldAlignment = .gravityAndHeading
-        arView.session.run(config)
+        //let config = ARWorldTrackingConfiguration()
+        //config.worldAlignment = .gravityAndHeading
+        //arView.session.run(config)
         
         // Set up location tracking through periodic updates
         let coordinator = context.coordinator
-        coordinator.trackingUpdates(arView: arView, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
+        coordinator.trackingUpdates(arView: nearbyNavigation.arview, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
         
-        return arView
+        return nearbyNavigation.arview
     }
 
     func updateUIView(_ uiView: ARView, context: Context) {}

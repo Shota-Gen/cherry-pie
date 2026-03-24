@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMotionUsageDescription</key>
+	<string>Motion usage is needed</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Local network usage is needed</string>
+	<key>NSNearbyInteractionUsageDescription</key>
+	<string>Nearby interaction is needed</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera is needed</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -19,8 +27,8 @@
 	<string>592651263718-g5bn51n8i5jbqh6nr91et13er4v2qtdf.apps.googleusercontent.com</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_stud-conn._tcp</string>
-		<string>_stud-conn._udp</string>
+		<string>_studyConn._tcp</string>
+		<string>_studyConn._udp</string>
 	</array>
 </dict>
 </plist>

@@ -30,12 +30,12 @@ struct PeerToPeerMessage: Codable {
 class NearbyNavigationService: NSObject {
     let MINIMUM_MEASUREMENT_DISTANCE: Float = 0.3
     let DATAPOINT_ANGLE_THRESHOLD: Float = 0.15
-    private var peerToPeerStatus: PeerToPeerStatus = PeerToPeerStatus.Inactive
+    private(set) var peerToPeerStatus: PeerToPeerStatus = PeerToPeerStatus.Inactive
     
     private var commitedUser: MCPeerID? = nil
-    private var foundUsers: [MCPeerID: UserProfile] = [
-        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
-        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
+    private var foundUsers: [MCPeerID: UserProfile] = [:
+//        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
+//        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
     ]
     var discoveredUsers: [UserProfile] {
         get {
@@ -43,7 +43,7 @@ class NearbyNavigationService: NSObject {
         }
     }
     
-    private(set) var arview: ARView = ARView(frame: .zero)
+    var arview: ARView = ARView(frame: .zero)
     
     private var altimeterStreamingTimer: Timer? = nil
     private var altimeter: CMAltimeter = CMAltimeter()
@@ -94,13 +94,13 @@ class NearbyNavigationService: NSObject {
         mcAdvertiser = MCNearbyServiceAdvertiser(
             peer: myPeerId,
             discoveryInfo: nil,
-            serviceType: "stud-conn"
+            serviceType: "studyConn"
         )
         mcAdvertiser.delegate = self
         
         mcBrowser = MCNearbyServiceBrowser(
             peer: myPeerId,
-            serviceType: "stud-conn"
+            serviceType: "studyConn"
         )
         mcBrowser.delegate = self
 
@@ -127,6 +127,18 @@ class NearbyNavigationService: NSObject {
         mcBrowser.startBrowsingForPeers()
         peerToPeerStatus = PeerToPeerStatus.Searching
     }
+    
+    func invitePeer(peer: UUID) {
+        if peerToPeerStatus != PeerToPeerStatus.Searching {
+            return
+        }
+        
+        for (userPeerId, userProf) in foundUsers {
+            if userProf.userId.uuidString == peer.uuidString {
+                mcBrowser.invitePeer(userPeerId, to: mcSession, withContext: nil, timeout: 10)
+            }
+        }
+    }
 
     func deactivate() {
         measurementReset()
@@ -147,6 +159,7 @@ class NearbyNavigationService: NSObject {
     }
     
     private func measurementReset() {
+        print("reset")
         myAltitude = 0.0
         targetAltitude = 0.0
         targetMeasurementCount = 0.0
@@ -154,7 +167,7 @@ class NearbyNavigationService: NSObject {
         positionCollected = []
         distanceCollected = []
         hasData = false
-        arview.session.pause()
+//        arview.session.pause()
         altimeter.stopAbsoluteAltitudeUpdates()
     }
     
@@ -198,20 +211,22 @@ class NearbyNavigationService: NSObject {
             ]
         )
         
-        if CMAltimeter.isRelativeAltitudeAvailable() {
-            altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
-                if data != nil {
-                    self.myAltitude = data!.altitude
-                }
-            })
-        }
+//        if CMAltimeter.isRelativeAltitudeAvailable() {
+//            altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
+//                print("altitude????")
+//                if data != nil {
+//                    print(data!.altitude)
+//                    self.myAltitude = data!.altitude
+//                }
+//            })
+//        }
         
-        altimeterStreamingTimer = Timer.scheduledTimer(
-            withTimeInterval: 1.0,
-            repeats: true,
-            block: { [weak self] _ in
-                self?.sendAltitudeReadings()
-            })
+//        altimeterStreamingTimer = Timer.scheduledTimer(
+//            withTimeInterval: 1.0,
+//            repeats: true,
+//            block: { [weak self] _ in
+//                self?.sendAltitudeReadings()
+//            })
     }
     
     private func sendAltitudeReadings() {
@@ -227,6 +242,7 @@ class NearbyNavigationService: NSObject {
     }
     
     private func accumulateDatapoints(position: SIMD3<Float>, distance: Float) {
+        print(distance)
         // keep number of points strictly <= 5, lazy approach
         // a better clustering algorithm or sampling might be
         // better, but will be really hard and time consuming
@@ -240,6 +256,7 @@ class NearbyNavigationService: NSObject {
         // math will be more sensitive to noise
         // the first point doesn't really matter since it is there
         // to make the algebra cleaner
+        print(position)
         for point in positionCollected.dropFirst() {
             if simd_length(position - point) < MINIMUM_MEASUREMENT_DISTANCE {
                 return
@@ -254,6 +271,7 @@ class NearbyNavigationService: NSObject {
             let ac = simd_normalize(position - positionCollected[2])
             let abs_dot_prod = abs(simd_dot(ab, ac))
             if abs_dot_prod > (1.0 - DATAPOINT_ANGLE_THRESHOLD) {
+                print(abs_dot_prod)
                 return
             }
         } else if positionCollected.count == 4 {
@@ -264,6 +282,7 @@ class NearbyNavigationService: NSObject {
             let ref = simd_cross(ab, ac)
             let abs_dot_prod = abs(simd_dot(ref, ad))
             if abs_dot_prod < DATAPOINT_ANGLE_THRESHOLD {
+                print(abs_dot_prod)
                 return
             }
         }
@@ -302,12 +321,15 @@ class NearbyNavigationService: NSObject {
         targetSum += simd_inverse(At * A) * At * y
         targetMeasurementCount += 1
         
+        print("discovered target")
+        print(target)
         hasData = true
     }
 }
 
 extension NearbyNavigationService: NISessionDelegate {
     func session(_ session: NISession, didUpdate nearbyObjects: [NINearbyObject]) {
+        print("streaming data")
         // retrieve the distance
         guard let niObject = nearbyObjects.first else { return }
         let distance: Float! = niObject.distance ?? 0.0
@@ -326,11 +348,14 @@ extension NearbyNavigationService: NISessionDelegate {
             return
         }
         
-        accumulateDatapoints(position: position, distance: distance)
-        evaluatePosition()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self!.accumulateDatapoints(position: position, distance: distance)
+            self!.evaluatePosition()
+        }
     }
     
     func session(_ session: NISession, didInvalidateWith error: Error) {
+        print("Ni session invalided, deactivating")
         deactivate()
     }
 }
@@ -339,10 +364,11 @@ extension NearbyNavigationService: MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         switch state {
         case .connected:
-            deactivate()
             if peerToPeerStatus == PeerToPeerStatus.Broadcasting {
+                //mcAdvertiser.stopAdvertisingPeer()
                 peerToPeerStatus = PeerToPeerStatus.BroadcastConnecting
             } else if peerToPeerStatus == PeerToPeerStatus.Searching {
+                //mcBrowser.stopBrowsingForPeers()
                 peerToPeerStatus = PeerToPeerStatus.SearchConnecting
             }
             commitedUser = peerID
@@ -360,7 +386,7 @@ extension NearbyNavigationService: MCSessionDelegate {
         if message.identifier == "NIToken" {
             if let token = try! NSKeyedUnarchiver.unarchivedObject(
                 ofClass: NIDiscoveryToken.self,
-                from: data
+                from: message.data
             ) {
                 if peerToPeerStatus == PeerToPeerStatus.BroadcastConnecting {
                     peerToPeerStatus = PeerToPeerStatus.Approached
@@ -413,12 +439,17 @@ extension NearbyNavigationService: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser,
                  foundPeer peerID: MCPeerID,
                  withDiscoveryInfo info: [String : String]?) {
+        print("found user")
         // TODO: FINISH IMPLEMENTATION, lookup user, don't add if don't exist
-        foundUsers[peerID] = UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2)
+        if peerID == myPeerId {
+            return
+        }
+        foundUsers[peerID] = UserProfile(userId: UUID(), displayName: "SpongeBob",  email: "spongebob@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2)
     }
     
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         // the user is no longer searchable, remove them
+        print("user disconnected")
         foundUsers.removeValue(forKey: peerID)
     }
     

@@ -134,7 +134,7 @@ struct ARNavigationSelectFriendView: View {
             nearbyNavigation!.searchUsers()
         }
         .onDisappear() {
-            nearbyNavigation!.broadcastUser()
+            //nearbyNavigation!.broadcastUser()
         }
         .alert("Camera Access Required", isPresented: $showCameraPermissionAlert) {
             Button("OK", role: .cancel) { }
@@ -155,6 +155,7 @@ struct ARNavigationSelectFriendView: View {
     private func startARNavigation() {
         guard canStart else { return }
 
+        nearbyNavigation!.invitePeer(peer: selectedFriendID!)
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         switch status {
         case .authorized:

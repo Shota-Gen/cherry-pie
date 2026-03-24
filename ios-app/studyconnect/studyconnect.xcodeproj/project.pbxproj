@@ -455,8 +455,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = studyconnect/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "The app uses your camera to show augmented reality navigation features when connecting with friends using UWB devices.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is needed for AR View";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "The app uses your location to show you on the app and find friends.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Motion Usage is needed for altimeter";
 				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "Required for nearby friend navigation using AR";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -491,8 +492,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = studyconnect/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "The app uses your camera to show augmented reality navigation features when connecting with friends using UWB devices.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is needed for AR View";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "The app uses your location to show you on the app and find friends.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Motion Usage is needed for altimeter";
 				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "Required for nearby friend navigation using AR";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
