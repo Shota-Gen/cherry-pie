@@ -146,8 +146,10 @@ struct FriendsView: View {
                 }
             }
             .onAppear {
-                friends = service.getFriendsList()
-                pendingInvites = inviteService.getPendingInvites()
+                Task {
+                    friends = await service.getFriendsList()
+                    pendingInvites = await inviteService.getPendingInvites()
+                }
             }
             .navigationDestination(for: FriendsRoute.self) { route in
                 switch route {

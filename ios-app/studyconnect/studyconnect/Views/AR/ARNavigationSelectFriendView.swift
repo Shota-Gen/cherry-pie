@@ -126,7 +126,9 @@ struct ARNavigationSelectFriendView: View {
         .navigationBarHidden(true)
         .onAppear {
             if friends.isEmpty {
-                friends = service.getSuggestedFriends()
+                Task {
+                    friends = await service.getSuggestedFriends()
+                }
             }
         }
         .alert("Camera Access Required", isPresented: $showCameraPermissionAlert) {

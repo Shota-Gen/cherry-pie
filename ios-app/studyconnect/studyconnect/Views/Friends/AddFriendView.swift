@@ -58,9 +58,11 @@ struct AddFriendView: View {
 
                     // Send button
                     Button {
-                        service.addFriend(id: uid)
-                        print("Friend request sent")
-                        showSuccess = true
+                        Task {
+                            await service.addFriend(id: uid)
+                            print("Friend request sent")
+                            showSuccess = true
+                        }
                     } label: {
                         HStack(spacing: 8) {
                             Text("Send Friend Request")

@@ -93,7 +93,9 @@ struct DeleteFriendsView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            friends = service.getFriendsList()
+            Task {
+                friends = await service.getFriendsList()
+            }
         }
     }
 
@@ -106,8 +108,10 @@ struct DeleteFriendsView: View {
     }
 
     private func deleteSelectedFriends() {
-        service.deleteFriends(ids: selectedFriendIDs)
-        dismiss()
+        Task {
+            await service.deleteFriends(ids: selectedFriendIDs)
+            dismiss()
+        }
     }
 }
 

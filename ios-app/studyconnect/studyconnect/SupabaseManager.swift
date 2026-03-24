@@ -10,6 +10,17 @@ import CryptoKit
 class SupabaseManager {
     static let shared = SupabaseManager()
     
+    #if targetEnvironment(simulator)
+    let client = SupabaseClient(
+        supabaseURL: URL(string: "http://127.0.0.1:54321")!,
+        supabaseKey: "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz",
+        options: SupabaseClientOptions(
+            auth: SupabaseClientOptions.AuthOptions(
+                emitLocalSessionAsInitialSession: true
+            )
+        )
+    )
+    #else
     let client = SupabaseClient(
         supabaseURL: URL(string: "https://gnupzytcsswejfvtifik.supabase.co")!,
         supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudXB6eXRjc3N3ZWpmdnRpZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjE5NTUsImV4cCI6MjA4NzM5Nzk1NX0.r3yj0WuNskL1qHVwKyvBl3OXZyociZYpBtkKzpeOaz8",
@@ -19,6 +30,7 @@ class SupabaseManager {
             )
         )
     )
+    #endif
     
     var session: Session? = nil
     

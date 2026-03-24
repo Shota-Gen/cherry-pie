@@ -86,7 +86,9 @@ struct SelectFriendsView: View {
         .navigationBarHidden(true)
         .onAppear {
             if friends.isEmpty {
-                friends = service.getSuggestedFriends()
+                Task {
+                    friends = await service.getSuggestedFriends()
+                }
             }
         }
     }

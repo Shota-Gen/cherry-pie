@@ -77,16 +77,55 @@ class SessionService {
         return Array(friends.shuffled().prefix(numBusy))
     }
 
-    // STUB: Create a study session and send invites.
+    // Create a study session and send invites via the backend API.
     // - createdBy:     UUID of the signed-in user
     // - spotId:        optional UUID of a study spot
     // - starts:        session start time
     // - ends:          session end time
     // - invitedUsers:  UUIDs of all invited friends (owner is auto-added as accepted)
     func createSession(createdBy: UUID, spotId: UUID?, starts: Date, ends: Date, invitedUsers: [UUID]) {
-        print("Creating session from \(starts) to \(ends) for \(invitedUsers.count) invitees.")
-        // TODO: Insert into public.sessions, then insert rows into public.session_members:
-        //   - owner row: status = 'accepted'
-        //   - invitee rows: status = 'pending'
+        Task {
+            do {
+                let baseURL = "http://127.0.0.1:8080"
+                var components = URLComponents(string: "\(baseURL)/sessions/private")!
+                components.queryItems = [URLQueryItem(name: "creator_id", value: createdBy.uuidString.lowercased())]
+
+                guard let url = components.url else {
+                    print("❌ Failed to build session URL")
+                    return
+                }
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+                var body: [String: Any] = [
+                    "title": "Study Session",
+                    "starts_at": formatter.string(from: starts),
+                    "ends_at": formatter.string(from: ends),
+                    "invitee_ids": invitedUsers.map { $0.uuidString.lowercased() }
+                ]
+                if let spotId {
+                    body["study_spot_id"] = spotId.uuidString.lowercased()
+                }
+
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+                let (data, response) = try await URLSession.shared.data(for: request)
+
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 201 {
+                    print("✅ Session created successfully")
+                } else {
+                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    let responseBody = String(data: data, encoding: .utf8) ?? "no body"
+                    print("❌ Session creation failed with status \(statusCode): \(responseBody)")
+                }
+            } catch {
+                print("❌ Session creation error: \(error.localizedDescription)")
+            }
+        }
     }
 }
