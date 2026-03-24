@@ -9,6 +9,7 @@ import MultipeerConnectivity
 import NearbyInteraction
 import RealityKit
 import ARKit
+import CoreMotion
 
 enum PeerToPeerStatus {
     case Inactive
@@ -43,6 +44,11 @@ class NearbyNavigationService: NSObject {
     }
     
     private(set) var arview: ARView = ARView(frame: .zero)
+    
+    private var altimeterStreamingTimer: Timer? = nil
+    private var altimeter: CMAltimeter = CMAltimeter()
+    private var myAltitude: Double = 0.0
+    private var targetAltitude: Double = 0.0
     
     private(set) var hasData: DarwinBoolean = false
     private var positionCollected: [SIMD3<Float>] = []
@@ -141,11 +147,15 @@ class NearbyNavigationService: NSObject {
     }
     
     private func measurementReset() {
+        myAltitude = 0.0
+        targetAltitude = 0.0
         targetMeasurementCount = 0.0
         targetSum = .zero
         positionCollected = []
         distanceCollected = []
         hasData = false
+        arview.session.pause()
+        altimeter.stopAbsoluteAltitudeUpdates()
     }
     
     private func sendNIDiscoveryToken() {
@@ -186,6 +196,33 @@ class NearbyNavigationService: NSObject {
                 .resetTracking,
                 .removeExistingAnchors
             ]
+        )
+        
+        if CMAltimeter.isRelativeAltitudeAvailable() {
+            altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
+                if data != nil {
+                    self.myAltitude = data!.altitude
+                }
+            })
+        }
+        
+        altimeterStreamingTimer = Timer.scheduledTimer(
+            withTimeInterval: 1.0,
+            repeats: true,
+            block: { [weak self] _ in
+                self?.sendAltitudeReadings()
+            })
+    }
+    
+    private func sendAltitudeReadings() {
+        let altitudeData: Data = Data(bytes: &myAltitude, count: MemoryLayout<Double>.size)
+        let message = PeerToPeerMessage(identifier: "AltitudeReading", data: altitudeData)
+        let encoded = try? JSONEncoder().encode(message)
+        
+        try? mcSession.send(
+            encoded!,
+            toPeers: mcSession.connectedPeers,
+            with: .reliable
         )
     }
     
@@ -332,6 +369,11 @@ extension NearbyNavigationService: MCSessionDelegate {
                 }
                 startNISession(token: token)
             }
+        } else if message.identifier == "AltitudeReading" {
+            targetAltitude = message.data.withUnsafeBytes {
+                $0.load(as: Double.self)
+            }
+            
         }
     }
     
