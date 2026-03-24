@@ -29,7 +29,6 @@ class SupabaseManager {
             )
         )
     )
-    #endif
     
     var session: Session? = nil
     
