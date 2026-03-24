@@ -13,8 +13,9 @@ struct ARNavigationSelectFriendView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    @State private var friends: [UserProfile] = []
-    @State private var service = FriendsService()
+    // TODO: potentially delete? we are discovering nearby users not friends
+    //@State private var friends: [UserProfile] = []
+    //@State private var service = FriendsService()
     @State private var selectedFriendID: UUID? = nil
     @State private var navigateToAR = false
 
@@ -23,6 +24,8 @@ struct ARNavigationSelectFriendView: View {
     @State private var cameraPermissionMessage = ""
 
     private let permissionService = ARCameraPermissionService()
+    
+    @Binding var nearbyNavigation: NearbyNavigationService?
 
     var body: some View {
         ZStack {
@@ -65,7 +68,7 @@ struct ARNavigationSelectFriendView: View {
                             .padding(.horizontal)
 
                         VStack(spacing: 10) {
-                            ForEach(friends) { friend in
+                            ForEach(nearbyNavigation!.discoveredUsers) { friend in
                                 Button {
                                     selectedFriendID = friend.userId
                                 } label: {
@@ -125,9 +128,13 @@ struct ARNavigationSelectFriendView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            if friends.isEmpty {
-                friends = service.getSuggestedFriends()
-            }
+//            if friends.isEmpty {
+//                friends = service.getSuggestedFriends()
+//            }
+            nearbyNavigation!.searchUsers()
+        }
+        .onDisappear() {
+            nearbyNavigation!.broadcastUser()
         }
         .alert("Camera Access Required", isPresented: $showCameraPermissionAlert) {
             Button("OK", role: .cancel) { }
@@ -183,13 +190,13 @@ struct ARNavigationSelectFriendView: View {
 
     private var selectedFriend: UserProfile? {
         guard let id = selectedFriendID else { return nil }
-        return friends.first { $0.userId == id }
+        return nearbyNavigation!.discoveredUsers.first { $0.userId == id }
     }
 
     @ViewBuilder
     private var destinationView: some View {
         if let friend = selectedFriend {
-            ARNavigationView(friend: friend)
+            ARNavigationView(friend: friend, nearbyNavigation: $nearbyNavigation)
         } else {
             EmptyView()
         }
@@ -198,6 +205,6 @@ struct ARNavigationSelectFriendView: View {
 
 #Preview {
     NavigationStack {
-        ARNavigationSelectFriendView()
+        ARNavigationSelectFriendView(nearbyNavigation: .constant(NearbyNavigationService()))
     }
 }

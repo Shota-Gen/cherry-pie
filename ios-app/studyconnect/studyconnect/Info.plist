@@ -17,9 +17,10 @@
 	</array>
 	<key>GIDClientID</key>
 	<string>592651263718-g5bn51n8i5jbqh6nr91et13er4v2qtdf.apps.googleusercontent.com</string>
-	<key>NSCameraUsageDescription</key>
-	<string>The app uses your camera to show augmented reality navigation features when connecting with friends using UWB devices.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>The app uses your location to show you on the app and find friends.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_stud-conn._tcp</string>
+		<string>_stud-conn._udp</string>
+	</array>
 </dict>
 </plist>

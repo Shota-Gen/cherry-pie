@@ -6,13 +6,18 @@
 //
 import SwiftUI
 import MapKit
+import Auth
 
 struct MapView: View {
+    @Environment(\.supabaseManager) var supabase
+
     @State private var locManager = LocationManager()
     @State private var showARNavigationSheet = false
-    @State private var showARNavigationBanner = true
+    @State private var showARNavigationBanner = false
     @State private var studySpots: [StudySpot] = []
     @State private var activeUsers: [ActiveStudyUser] = []
+    
+    @State private var nearbyNavigation: NearbyNavigationService? = nil
     
     private let studySpotService = StudySpotService()
     
@@ -77,13 +82,18 @@ struct MapView: View {
         }
         .fullScreenCover(isPresented: $showARNavigationSheet) {
             NavigationStack {
-                ARNavigationSelectFriendView()
+                ARNavigationSelectFriendView(nearbyNavigation: $nearbyNavigation)
                     .background(Color.black.edgesIgnoringSafeArea(.all))
             }
         }
         .task {
             studySpots = await studySpotService.getStudySpots()
             activeUsers = await studySpotService.getActiveUsers()
+            
+            nearbyNavigation = NearbyNavigationService()
+            nearbyNavigation!.userId = supabase.session!.user.id.uuidString
+            nearbyNavigation!.broadcastUser()
+            showARNavigationBanner = true
         }
         .task(id: "refresh") {
             // Refresh active users every 30 seconds

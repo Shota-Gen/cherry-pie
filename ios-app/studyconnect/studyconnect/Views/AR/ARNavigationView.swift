@@ -7,6 +7,7 @@ import Combine
 struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
     let friend: UserProfile
+    @Binding var nearbyNavigation: NearbyNavigationService!
     @State private var distanceToTarget: Float = 5.0
     @State private var bearingToTarget: Float = 0
     @State private var deviceHeading: Float = 0
@@ -32,6 +33,12 @@ struct ARNavigationView: View {
                 targetCard
                     .padding(.bottom, 60)
             }
+        }
+        .onAppear() {
+            print("entering AR mode")
+        }
+        .onDisappear() {
+            print("exiting AR mode")
         }
     }
 
