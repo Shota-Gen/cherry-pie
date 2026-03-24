@@ -1,3 +1,4 @@
+
 -- 1. Create the Users/Profiles table
 CREATE TABLE public.users (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,

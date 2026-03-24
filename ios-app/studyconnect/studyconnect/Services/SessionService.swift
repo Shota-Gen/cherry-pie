@@ -8,18 +8,8 @@
 import Foundation
 
 class SessionService {
+    
 
-    // STUB: Returns all available study spots.
-    func getStudySpots() -> [StudySpot] {
-        return [
-            StudySpot(spotId: UUID(), name: "UGLI"),
-            StudySpot(spotId: UUID(), name: "Law Library"),
-            StudySpot(spotId: UUID(), name: "Ross Building"),
-            StudySpot(spotId: UUID(), name: "Duderstadt"),
-            StudySpot(spotId: UUID(), name: "Hatcher")
-        ]
-        // TODO: SELECT spot_id, name, is_active, created_at FROM public.study_spots WHERE is_active = TRUE
-    }
 
     // STUB: Returns suggested study session slots.
     // - config: session parameters (date range, duration, time window, friends)

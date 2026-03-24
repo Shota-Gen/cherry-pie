@@ -1,10 +1,3 @@
-//
-//  ARNavigationView.swift
-//  studyconnect
-//
-//  Created by Jawad using Copilot on 3/6/26.
-//
-
 import SwiftUI
 import RealityKit
 import ARKit
@@ -14,18 +7,25 @@ import Combine
 struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
     let friend: UserProfile
+    @State private var distanceToTarget: Float = 5.0
+    @State private var bearingToTarget: Float = 0
+    @State private var deviceHeading: Float = 0
+    @State private var isHeadingAvailable = false
 
     var body: some View {
         ZStack {
             Color.black
                 .ignoresSafeArea(edges: .all)
 
-            ARViewContainer(friend: friend)
+            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable)
                 .ignoresSafeArea(edges: .all)
+
+            // Direction arrow - points to target
+            compassArrow(bearing: bearingToTarget, heading: deviceHeading)
 
             VStack(spacing: 0) {
                 topBar
-            .padding(.top, 6)
+                    .padding(.top, 6)
 
                 Spacer()
 
@@ -33,6 +33,25 @@ struct ARNavigationView: View {
                     .padding(.bottom, 60)
             }
         }
+    }
+
+    private func compassArrow(bearing: Float, heading: Float) -> some View {
+        let relativeAngle = bearing - heading
+        
+        return VStack {
+            Image(systemName: "location.fill")
+                .font(.system(size: 36, weight: .bold))
+                .foregroundColor(Color(red: 0.22, green: 0.61, blue: 0.99))
+                .rotationEffect(.degrees(Double(relativeAngle)))
+                .padding(16)
+                .background(Color.black.opacity(0.5))
+                .clipShape(Circle())
+                .shadow(color: Color.black.opacity(0.5), radius: 12, x: 0, y: 6)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 120)
     }
 
     private var topBar: some View {
@@ -59,7 +78,7 @@ struct ARNavigationView: View {
 
             Spacer()
 
-            Text("12m")
+            Text("\(Int(distanceToTarget))m")
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(Color(red: 0.22, green: 0.61, blue: 0.99))
@@ -141,11 +160,14 @@ struct ARNavigationView: View {
         .shadow(color: Color.black.opacity(0.4), radius: 20, x: 0, y: 12)
         .padding(.horizontal, 26)
     }
-
 }
 
 private struct ARViewContainer: UIViewRepresentable {
     let friend: UserProfile
+    @Binding var distanceToTarget: Float
+    @Binding var bearingToTarget: Float
+    @Binding var deviceHeading: Float
+    @Binding var isHeadingAvailable: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -153,108 +175,67 @@ private struct ARViewContainer: UIViewRepresentable {
 
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
-        arView.automaticallyConfigureSession = true
-
+        
+        // Configure AR with heading alignment
         let config = ARWorldTrackingConfiguration()
-        config.environmentTexturing = .automatic
-        config.planeDetection = []
-        config.worldAlignment = .gravity
-
-        arView.session.run(config, options: [])
-
-        // Place a simple billboard in front of the user representing the friend.
-        let anchor = AnchorEntity(world: [0, 0, -1.2])
-
-        let planeSize: Float = 0.28
-        let plane = ModelEntity(mesh: .generatePlane(width: planeSize, height: planeSize), materials: [SimpleMaterial(color: .white, isMetallic: false)])
-        anchor.addChild(plane)
-        arView.scene.addAnchor(anchor)
-
-        // Make the plane always face the camera.
-        let subscription = arView.scene.subscribe(to: SceneEvents.Update.self) { _ in
-            let cameraPosition = arView.cameraTransform.translation
-            plane.look(at: cameraPosition, from: plane.position, relativeTo: nil)
-        }
-        context.coordinator.subscriptions.append(subscription)
-
-        Task { [weak arView] in
-            guard let cgImage = billboardImage(for: friend).cgImage else { return }
-
-            let options = TextureResource.CreateOptions(semantic: .color)
-            if let texture = try? await TextureResource.generate(from: cgImage, options: options) {
-                var material = SimpleMaterial(color: .white, isMetallic: false)
-                material.baseColor = .texture(texture)
-                plane.model?.materials = [material]
-            }
-        }
-
+        config.worldAlignment = .gravityAndHeading
+        arView.session.run(config)
+        
+        // Set up location tracking through periodic updates
+        let coordinator = context.coordinator
+        coordinator.trackingUpdates(arView: arView, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
+        
         return arView
     }
 
-    func updateUIView(_ uiView: ARView, context: Context) { }
+    func updateUIView(_ uiView: ARView, context: Context) {}
 
     class Coordinator {
-        var subscriptions: [Cancellable] = []
-    }
-
-    private func billboardImage(for friend: UserProfile) -> UIImage {
-        let size = CGSize(width: 512, height: 512)
-        let renderer = UIGraphicsImageRenderer(size: size)
-
-        return renderer.image { ctx in
-            let rect = CGRect(origin: .zero, size: size)
-
-            UIColor(white: 0, alpha: 0.45).setFill()
-            ctx.fill(rect)
-
-            let cardRect = rect.insetBy(dx: 32, dy: 40)
-            let cardPath = UIBezierPath(roundedRect: cardRect, cornerRadius: 40)
-            UIColor(white: 1, alpha: 0.18).setFill()
-            cardPath.fill()
-
-            let targetText = "TARGET"
-            let targetAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: 42),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.85)
-            ]
-            let targetSize = targetText.size(withAttributes: targetAttributes)
-            let targetOrigin = CGPoint(x: cardRect.midX - targetSize.width / 2, y: cardRect.minY + 24)
-            targetText.draw(at: targetOrigin, withAttributes: targetAttributes)
-
-            let avatarDiameter: CGFloat = 180
-            let avatarOrigin = CGPoint(x: cardRect.midX - avatarDiameter / 2, y: targetOrigin.y + targetSize.height + 18)
-            let avatarRect = CGRect(origin: avatarOrigin, size: CGSize(width: avatarDiameter, height: avatarDiameter))
-            let avatarPath = UIBezierPath(ovalIn: avatarRect)
-            UIColor(white: 1, alpha: 0.25).setFill()
-            avatarPath.fill()
-
-            let initials: String = {
-                let parts = friend.displayTitle.split(separator: " ")
-                let first = parts.first?.prefix(1) ?? ""
-                let second = parts.dropFirst().first?.prefix(1) ?? ""
-                return (first + second).uppercased()
-            }()
-
-            let initialsAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 72, weight: .semibold),
-                .foregroundColor: UIColor.white
-            ]
-            let initialsSize = initials.size(withAttributes: initialsAttributes)
-            let initialsOrigin = CGPoint(x: avatarRect.midX - initialsSize.width / 2, y: avatarRect.midY - initialsSize.height / 2)
-            initials.draw(at: initialsOrigin, withAttributes: initialsAttributes)
-
-            let nameAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 30, weight: .semibold),
-                .foregroundColor: UIColor.white
-            ]
-            let name = friend.displayTitle
-            let nameSize = name.size(withAttributes: nameAttributes)
-            let nameOrigin = CGPoint(x: cardRect.midX - nameSize.width / 2, y: avatarRect.maxY + 18)
-            name.draw(at: nameOrigin, withAttributes: nameAttributes)
+        private var timer: Timer?
+        private var subscriptions = [AnyCancellable]()
+        
+        func trackingUpdates(arView: ARView, distanceBinding: Binding<Float>, bearingBinding: Binding<Float>, headingBinding: Binding<Float>, isHeadingAvailableBinding: Binding<Bool>) {
+            // Target position in world space
+            let targetWorldPosition = SIMD3<Float>(2.0, 0.0, -4.5)
+            
+            timer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { _ in
+                guard let frame = arView.session.currentFrame else { return }
+                
+                let cameraTransform = frame.camera.transform
+                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+                
+                // Calculate distance
+                let deltaVector = targetWorldPosition - cameraPosition
+                let distance = simd_length(deltaVector)
+                
+                // Calculate bearing
+                let forward = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
+                let right = SIMD3<Float>(cameraTransform.columns.0.x, cameraTransform.columns.0.y, cameraTransform.columns.0.z)
+                let forwardDist = simd_dot(deltaVector, forward)
+                let rightDist = simd_dot(deltaVector, right)
+                let angleRadians = atan2(rightDist, forwardDist)
+                let bearing = angleRadians * 180 / .pi
+                
+                // Calculate heading
+                let heading = atan2(forward.x, -forward.z) * 180 / .pi
+                
+                DispatchQueue.main.async {
+                    distanceBinding.wrappedValue = distance
+                    bearingBinding.wrappedValue = bearing
+                    headingBinding.wrappedValue = heading
+                    isHeadingAvailableBinding.wrappedValue = true
+                }
+            }
+        }
+        
+        deinit {
+            timer?.invalidate()
         }
     }
 }
 
+
+// MARK: - Helper Views
 private struct BlurView: UIViewRepresentable {
     let style: UIBlurEffect.Style
 
@@ -265,8 +246,4 @@ private struct BlurView: UIViewRepresentable {
     func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
         uiView.effect = UIBlurEffect(style: style)
     }
-}
-
-#Preview {
-    ARNavigationView(friend: UserProfile(userId: UUID(), displayName: "Sarah Jenkins", email: "sarah@umich.edu", studySpot: "Student Union", distanceMiles: 0.1))
 }

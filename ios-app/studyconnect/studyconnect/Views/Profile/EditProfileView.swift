@@ -17,6 +17,8 @@ struct EditProfileView: View {
     @State private var major = ""
     @State private var selectedYear = "Year 1"
     @State private var profileImage = ""
+    @State private var isLoadingProfile = false
+    @State private var isSaving = false
 
     var body: some View {
         ScrollView {
@@ -56,15 +58,9 @@ struct EditProfileView: View {
                 }
 
                 Button {
-                    var updated = loadedProfile
-                    updated.displayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    updated.major = major.trimmingCharacters(in: .whitespacesAndNewlines)
-                    updated.profileImage = profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
-                    updated.universityYear = parsedYear
-                    service.updateProfile(updated)
-                    dismiss()
+                    Task { await save() }
                 } label: {
-                    Text("Save Changes")
+                    Text(isSaving ? "Saving..." : "Save Changes")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -74,6 +70,7 @@ struct EditProfileView: View {
                         .shadow(color: Color.blue.opacity(0.24), radius: 12, y: 8)
                 }
                 .buttonStyle(.plain)
+                .disabled(isLoadingProfile || isSaving || supabase.session == nil)
                 .padding(.top, 6)
             }
             .padding(.horizontal, 20)
@@ -83,16 +80,7 @@ struct EditProfileView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Edit Profile")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            let p = service.fetchProfile(email: supabase.session?.user.email)
-            loadedProfile = p
-            displayName = p.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-            major = p.major.trimmingCharacters(in: .whitespacesAndNewlines)
-            profileImage = p.profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let universityYear = p.universityYear {
-                selectedYear = universityYear >= 6 ? "Year 6+" : "Year \(universityYear)"
-            }
-        }
+        .task { await loadProfile() }
     }
 
     private let yearOptions = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6+"]
@@ -169,6 +157,50 @@ struct EditProfileView: View {
                 .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    @MainActor
+    private func loadProfile() async {
+        guard let session = supabase.session else { return }
+
+        isLoadingProfile = true
+        defer { isLoadingProfile = false }
+
+        do {
+            let p = try await service.fetchMyProfile(userId: session.user.id, fallbackEmail: session.user.email)
+            loadedProfile = p
+            displayName = p.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            major = p.major.trimmingCharacters(in: .whitespacesAndNewlines)
+            profileImage = p.profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let universityYear = p.universityYear {
+                selectedYear = universityYear >= 6 ? "Year 6+" : "Year \(universityYear)"
+            }
+        } catch {
+            print("Edit profile load failed: \(error)")
+        }
+    }
+
+    @MainActor
+    private func save() async {
+        guard let session = supabase.session else { return }
+
+        isSaving = true
+        defer { isSaving = false }
+
+        var updated = loadedProfile
+        updated.userId = session.user.id
+        updated.email = session.user.email ?? updated.email
+        updated.displayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.major = major.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.profileImage = profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.universityYear = parsedYear
+
+        do {
+            try await service.updateProfile(updated)
+            dismiss()
+        } catch {
+            print("Profile save failed: \(error)")
         }
     }
 }

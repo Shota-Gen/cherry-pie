@@ -10,20 +10,19 @@ import CryptoKit
 class SupabaseManager {
     static let shared = SupabaseManager()
     
-    #if targetEnvironment(simulator)
-    let client = SupabaseClient(
-        supabaseURL: URL(string: "http://127.0.0.1:54321")!,
-        supabaseKey: "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz",
-        options: SupabaseClientOptions(
-            auth: SupabaseClientOptions.AuthOptions(
-                emitLocalSessionAsInitialSession: true
-            )
-        )
-    )
+    #if DEBUG && targetEnvironment(simulator)
+    // Simulator → local Supabase (via `supabase start`)
+    private static let supabaseURL = URL(string: "http://localhost:54321")!
+    private static let supabaseKey = "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"
     #else
+    // Physical device + Release → production Supabase
+    private static let supabaseURL = URL(string: "https://gnupzytcsswejfvtifik.supabase.co")!
+    private static let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudXB6eXRjc3N3ZWpmdnRpZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjE5NTUsImV4cCI6MjA4NzM5Nzk1NX0.r3yj0WuNskL1qHVwKyvBl3OXZyociZYpBtkKzpeOaz8"
+    #endif
+    
     let client = SupabaseClient(
-        supabaseURL: URL(string: "https://gnupzytcsswejfvtifik.supabase.co")!,
-        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudXB6eXRjc3N3ZWpmdnRpZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjE5NTUsImV4cCI6MjA4NzM5Nzk1NX0.r3yj0WuNskL1qHVwKyvBl3OXZyociZYpBtkKzpeOaz8",
+        supabaseURL: supabaseURL,
+        supabaseKey: supabaseKey,
         options: SupabaseClientOptions(
             auth: SupabaseClientOptions.AuthOptions(
                 emitLocalSessionAsInitialSession: true
@@ -37,31 +36,43 @@ class SupabaseManager {
     init() {
         Task {
             do {
-                self.session = try await client.auth.session
+                let sess = try await client.auth.session
+                await MainActor.run {
+                    self.session = sess
+                }
+                await ensureUserRowExists()
             } catch {
                 print("No active session found")
             }
         }
     }
 
-    @MainActor
     func signInWithGoogle() async {
         do {
-            guard let rootVC = UIApplication.shared.connectedScenes
-                .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
-                .first else { return }
-
             // 1. Generate a random 'nonce' string
             let rawNonce = String.randomNonce()
             let hashedNonce = sha256(rawNonce)
 
-            // 2. Pass the HASHED nonce to Google
-            let gidResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC, hint: nil, additionalScopes: nil, nonce: hashedNonce)
-            
+            // 2. Acquire a presenting view controller on the main actor
+            let rootVC: UIViewController? = await MainActor.run {
+                UIApplication.shared.connectedScenes
+                    .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
+                    .first
+            }
+            guard let rootVC else { return }
+
+            // 3. Present Google Sign-In (API runs on main actor)
+            let gidResult = try await GIDSignIn.sharedInstance.signIn(
+                withPresenting: rootVC,
+                hint: nil,
+                additionalScopes: nil,
+                nonce: hashedNonce
+            )
+
             guard let idToken = gidResult.user.idToken?.tokenString else { return }
             let accessToken = gidResult.user.accessToken.tokenString
 
-            // 3. Pass the RAW nonce to Supabase so it can verify the token
+            // 4. Exchange tokens with Supabase (no main actor required)
             let session = try await client.auth.signInWithIdToken(
                 credentials: .init(
                     provider: .google,
@@ -70,63 +81,120 @@ class SupabaseManager {
                     nonce: rawNonce
                 )
             )
-            
-            self.session = session
-            print("✅ Logged in: \(self.session?.user.email ?? "Unknown")")
-            await linkDeviceToUser()
-            
+
+            // 5. Publish session change on main actor to keep UI updates safe
+            await MainActor.run {
+                self.session = session
+            }
+            print("✅ Logged in: \(session.user.email ?? "Unknown")")
+            let nameHint = gidResult.user.profile?.name
+            await ensureUserRowExists(displayNameHint: nameHint)
+
         } catch {
             print("❌ Login failed: \(error.localizedDescription)")
         }
     }
 
-    @MainActor
     func linkDeviceToUser() async {
-        guard let userId = session?.user.id else {
-            print("❌ No user logged in")
+        await ensureUserRowExists()
+    }
+
+    func ensureUserRowExists(displayNameHint: String? = nil) async {
+        let (userId, email): (UUID?, String?) = await MainActor.run {
+            (self.session?.user.id, self.session?.user.email)
+        }
+        guard let userId else {
             return
         }
-        
+
         let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "unknown_ios_device"
-        
+
         do {
+            // 1. See if a row already exists.
+            if var existing: SupabaseUserRow = try? await client
+                .from("users")
+                .select()
+                .eq("user_id", value: userId)
+                .single()
+                .execute()
+                .value
+            {
+                var update: [String: AnyEncodable] = [
+                    "device_id": AnyEncodable(deviceID)
+                ]
+
+                // One-time upgrade: if we have a Google name and the current display_name
+                // is empty or just the email-derived default, replace it with the Google name.
+                if let googleName = displayNameHint, !googleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let currentName = (existing.displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let emailDerived = email.flatMap { ProfileService.deriveDisplayName(from: $0) } ?? ""
+
+                    if currentName.isEmpty || currentName.caseInsensitiveCompare(emailDerived) == .orderedSame {
+                        update["display_name"] = AnyEncodable(googleName)
+                    }
+                }
+
+                try await client
+                    .from("users")
+                    .update(update)
+                    .eq("user_id", value: userId)
+                    .execute()
+                print("✅ Linked Device ID: \(deviceID)")
+                return
+            }
+
+            // 2. No existing row: create one, preferring Google name when available
+            let displayName = displayNameHint
+                ?? email.flatMap { ProfileService.deriveDisplayName(from: $0) }
+
+            let row = SupabaseUserRow(
+                userId: userId,
+                displayName: displayName,
+                email: email,
+                deviceId: deviceID,
+                isInvisible: nil,
+                lastKnownLat: nil,
+                lastKnownLng: nil,
+                currentFloor: nil,
+                createdAt: nil,
+                profileImage: nil,
+                studySpot: nil,
+                major: nil,
+                universityYear: nil
+            )
+
             try await client
                 .from("users")
-                .update(["device_id": deviceID])
-                .eq("user_id", value: userId)
+                .insert(row)
                 .execute()
-            print("✅ Linked Device ID: \(deviceID)")
+            print("✅ Created user row and linked Device ID: \(deviceID)")
         } catch {
-            print("❌ Update failed: \(error.localizedDescription)")
+            print("❌ ensureUserRowExists failed: \(error.localizedDescription)")
         }
     }
     
-    @MainActor
     func updateLocation(latitude: Double, longitude: Double) async {
-        guard let userId = session?.user.id else { return }
-        
+        let userId = await MainActor.run { self.session?.user.id }
+        guard let userId else { return }
+
         do {
-            // Removed "last_seen" to match the actual database schema
             let updateData: [String: AnyEncodable] = [
                 "last_known_lat": AnyEncodable(latitude),
                 "last_known_lng": AnyEncodable(longitude)
-                // possible to add a last-seen field to supabase, so we
-                // can display elapsed time (ex: last seen location from 20 min ago)
             ]
-            
+
             try await client
                 .from("users")
                 .update(updateData)
                 .eq("user_id", value: userId)
                 .execute()
-                
+
             print("Location updated: \(latitude), \(longitude)")
         } catch {
             print("Location update failed: \(error.localizedDescription)")
         }
     }
 
-    @MainActor
     func signOut() async {
         do {
             try await client.auth.signOut()
@@ -134,8 +202,10 @@ class SupabaseManager {
             print("❌ Supabase sign out failed: \(error.localizedDescription)")
         }
 
-        GIDSignIn.sharedInstance.signOut()
-        session = nil
+        await MainActor.run {
+            GIDSignIn.sharedInstance.signOut()
+            self.session = nil
+        }
         print("✅ Signed out")
     }
 }
@@ -188,7 +258,5 @@ extension EnvironmentValues {
         set { self[SupabaseManagerKey.self] = newValue }
     }
 }
-
-
 
 
