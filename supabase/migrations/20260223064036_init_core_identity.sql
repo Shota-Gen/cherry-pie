@@ -16,25 +16,6 @@ CREATE TABLE public.users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. Enable PostGIS (needed by study_spots)
-CREATE EXTENSION IF NOT EXISTS postgis with schema "extensions";
-
--- 3. Create the Study Spots table (must exist before sessions references it)
-CREATE TABLE public.study_spots (
-    spot_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL UNIQUE, -- e.g., 'UGLI 1st Floor'
-
-    -- Using GEOGRAPHY(Polygon, 4326) for high-accuracy Earth coordinates
-    geofence extensions.geography(Polygon, 4326) NOT NULL,
-
-    -- Metadata
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Spatial Index for performance
-CREATE INDEX study_spots_geo_idx ON public.study_spots USING GIST (geofence);
-
 -- 4. Create the Sessions table
 CREATE TABLE public.sessions (
     session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
