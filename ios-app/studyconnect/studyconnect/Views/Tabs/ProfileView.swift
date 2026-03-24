@@ -267,6 +267,7 @@ struct ProfileView: View {
         .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
     }
 
+    // @MainActor required to update session-dependent UI state from async network operation
     @MainActor
     private func loadProfile() async {
         guard let session = supabase.session else {

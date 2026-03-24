@@ -21,6 +21,7 @@ struct MapView: View {
     @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
     
     var body: some View {
+        // ZStack(alignment: .top) required for layering Map with AR navigation banner overlay positioned at top
         ZStack(alignment: .top) {
             Map(position: $position) {
                 UserAnnotation()
@@ -109,6 +110,7 @@ private struct ARNavigationBanner: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 10) {
+                // ZStack required for layering circle background with arkit icon
                 ZStack {
                     Circle()
                         .fill(Color.white.opacity(0.85))

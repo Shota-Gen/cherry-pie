@@ -18,6 +18,7 @@ struct FriendsView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
+            // ZStack required for layering gray background with white content sections
             ZStack {
                 // 1. Fixed Background Color
                 Color(red: 0.95, green: 0.95, blue: 0.95)

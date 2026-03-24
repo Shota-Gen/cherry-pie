@@ -160,6 +160,7 @@ struct EditProfileView: View {
         }
     }
 
+    // @MainActor required to update profile properties from async network fetch
     @MainActor
     private func loadProfile() async {
         guard let session = supabase.session else { return }
@@ -181,6 +182,7 @@ struct EditProfileView: View {
         }
     }
 
+    // @MainActor required to update profile UI state from async save operation
     @MainActor
     private func save() async {
         guard let session = supabase.session else { return }
