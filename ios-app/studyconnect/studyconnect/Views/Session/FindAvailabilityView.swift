@@ -31,63 +31,57 @@ struct FindAvailabilityView: View {
     }
 
     var body: some View {
-        // ZStack needed: layering background color with scrollable content area
-        ZStack {
-            Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
 
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-
-                        // ── Info card ─────────────────────────────────────
-                        HStack(alignment: .bottom) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("INVITING")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundColor(.gray)
-                                stackedAvatars
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("DURATION")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundColor(.gray)
-                                Text("\(config.duration) \(config.duration == 1 ? "Hour" : "Hours")")
-                                    .font(.title3.weight(.bold))
-                                    .foregroundColor(.blue)
-                            }
+                    // ── Info card ─────────────────────────────────────
+                    HStack(alignment: .bottom) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("INVITING")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.gray)
+                            stackedAvatars
                         }
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(16)
-
-                        // ── Slot list ──────────────────────────────────────
-                        if slots.isEmpty {
-                            HStack {
-                                Spacer()
-                                VStack(spacing: 12) {
-                                    ProgressView()
-                                    Text("Finding slots…")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                                Spacer()
-                            }
-                            .padding(.top, 40)
-                        } else {
-                            ForEach(slotsByDay, id: \.day) { group in
-                                VStack(alignment: .leading, spacing: 10) {
-                                    dayHeader(for: group.day)
-                                    ForEach(group.slots) { slot in
-                                        slotCard(slot)
-                                    }
-                                }
-                            }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("DURATION")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.gray)
+                            Text("\(config.duration) \(config.duration == 1 ? "Hour" : "Hours")")
+                                .font(.title3.weight(.bold))
+                                .foregroundColor(.blue)
                         }
-
-                        Color.clear.frame(height: 80)
                     }
                     .padding()
+                    .background(Color.white)
+                    .cornerRadius(16)
+
+                    // ── Slot list ──────────────────────────────────────
+                    if slots.isEmpty {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 12) {
+                                ProgressView()
+                                Text("Finding slots…")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.top, 40)
+                    } else {
+                        ForEach(slotsByDay, id: \.day) { group in
+                            VStack(alignment: .leading, spacing: 10) {
+                                dayHeader(for: group.day)
+                                ForEach(group.slots) { slot in
+                                    slotCard(slot)
+                                }
+                            }
+                        }
+                    }
+
+                    Color.clear.frame(height: 80)
                 }
 
                 // ── Send bar ───────────────────────────────────────────────
@@ -148,6 +142,7 @@ struct FindAvailabilityView: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
+        .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .animation(.easeInOut(duration: 0.25), value: sessionSent)
         .navigationTitle("Find Availability")
         .navigationBarTitleDisplayMode(.inline)

@@ -16,7 +16,7 @@ CREATE TABLE public.users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. Create the Sessions table
+-- 4. Create the Sessions table
 CREATE TABLE public.sessions (
     session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_by UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,

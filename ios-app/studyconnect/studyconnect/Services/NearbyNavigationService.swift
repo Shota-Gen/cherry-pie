@@ -33,9 +33,9 @@ class NearbyNavigationService: NSObject {
     private(set) var peerToPeerStatus: PeerToPeerStatus = PeerToPeerStatus.Inactive
     
     private var commitedUser: MCPeerID? = nil
-    private var foundUsers: [MCPeerID: UserProfile] = [:
-//        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
-//        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
+    private var foundUsers: [MCPeerID: UserProfile] = [
+        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
+        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
     ]
     var discoveredUsers: [UserProfile] {
         get {
@@ -55,6 +55,7 @@ class NearbyNavigationService: NSObject {
     private var distanceCollected: [Float] = []
     private var targetSum: SIMD3<Float> = .zero
     private var targetMeasurementCount: Float = 0.0
+    private(set) var targetDistance: Float = 0.0
     var target: SIMD3<Float> {
         get {
             return targetSum / targetMeasurementCount
@@ -129,15 +130,15 @@ class NearbyNavigationService: NSObject {
     }
     
     func invitePeer(peer: UUID) {
-        if peerToPeerStatus != PeerToPeerStatus.Searching {
-            return
-        }
-        
-        for (userPeerId, userProf) in foundUsers {
-            if userProf.userId.uuidString == peer.uuidString {
-                mcBrowser.invitePeer(userPeerId, to: mcSession, withContext: nil, timeout: 10)
-            }
-        }
+//        if peerToPeerStatus != PeerToPeerStatus.Searching {
+//            return
+//        }
+//        
+//        for (userPeerId, userProf) in foundUsers {
+//            if userProf.userId.uuidString == peer.uuidString {
+//                mcBrowser.invitePeer(userPeerId, to: mcSession, withContext: nil, timeout: 10)
+//            }
+//        }
     }
 
     func deactivate() {
@@ -167,8 +168,8 @@ class NearbyNavigationService: NSObject {
         positionCollected = []
         distanceCollected = []
         hasData = false
-//        arview.session.pause()
-        altimeter.stopAbsoluteAltitudeUpdates()
+        arview.session.pause()
+        //altimeter.stopAbsoluteAltitudeUpdates()
     }
     
     private func sendNIDiscoveryToken() {
@@ -348,10 +349,9 @@ extension NearbyNavigationService: NISessionDelegate {
             return
         }
         
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self!.accumulateDatapoints(position: position, distance: distance)
-            self!.evaluatePosition()
-        }
+        targetDistance = distance
+        accumulateDatapoints(position: position, distance: distance)
+        evaluatePosition()
     }
     
     func session(_ session: NISession, didInvalidateWith error: Error) {

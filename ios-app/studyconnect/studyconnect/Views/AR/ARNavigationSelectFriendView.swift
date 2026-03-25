@@ -28,12 +28,14 @@ struct ARNavigationSelectFriendView: View {
     @Binding var nearbyNavigation: NearbyNavigationService?
 
     var body: some View {
+        // ZStack required for layering gray background with white header and scrollable content
         ZStack {
             Color(red: 0.95, green: 0.95, blue: 0.95)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Header
+                // ZStack required for centering title text while positioning back button on left
                 ZStack {
                     Text("Select Friend to Navigate to")
                         .font(.system(size: 18, weight: .semibold))
@@ -61,7 +63,7 @@ struct ARNavigationSelectFriendView: View {
 
                 ScrollView {                    
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("WITHIN 20 METERS")
+                        Text("WITHIN 10 METERS")
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.gray)
@@ -95,6 +97,7 @@ struct ARNavigationSelectFriendView: View {
                     startARNavigation()
                 } label: {
                     HStack(spacing: 12) {
+                        // ZStack required for layering circle background with centered icon
                         ZStack {
                             Circle()
                                 .fill(Color.white.opacity(0.25))
@@ -164,7 +167,8 @@ struct ARNavigationSelectFriendView: View {
 
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                DispatchQueue.main.async {
+                // Use MainActor to update UI state from camera permission callback
+                Task { @MainActor in
                     permissionService.recordPermissionGranted(granted)
                     if granted {
                         navigateToAR = true

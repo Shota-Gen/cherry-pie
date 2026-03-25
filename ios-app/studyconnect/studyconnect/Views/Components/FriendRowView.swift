@@ -46,7 +46,7 @@ struct FriendRowView: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(8)
         .overlay(
             RoundedRectangle(cornerRadius: 8)

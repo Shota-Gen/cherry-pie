@@ -2,7 +2,6 @@ import SwiftUI
 import RealityKit
 import ARKit
 import UIKit
-import Combine
 
 struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
@@ -14,12 +13,13 @@ struct ARNavigationView: View {
     @State private var isHeadingAvailable = false
 
     var body: some View {
+        // ZStack required for layering AR content with overlaid UI elements (compass arrow, top bar, target card)
         ZStack {
             Color.black
                 .ignoresSafeArea(edges: .all)
 
-            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable, nearbyNavigation: $nearbyNavigation)
-                .ignoresSafeArea(edges: .all)
+//            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable, nearbyNavigation: $nearbyNavigation)
+//                .ignoresSafeArea(edges: .all)
 
             // Direction arrow - points to target
             compassArrow(bearing: bearingToTarget, heading: deviceHeading)
@@ -181,16 +181,16 @@ private struct ARViewContainer: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> ARView {
-        //let arView = ARView(frame: .zero)
+//        let arView = ARView(frame: .zero)
+//        
+////         Configure R with heading alignment
+//        let config = ARWorldTrackingConfiguration()
+//        config.worldAlignment = .gravityAndHeading
+//        arView.session.run(config)
         
-        // Configure AR with heading alignment
-        //let config = ARWorldTrackingConfiguration()
-        //config.worldAlignment = .gravityAndHeading
-        //arView.session.run(config)
-        
-        // Set up location tracking through periodic updates
+//         Set up location tracking through periodic updates
         let coordinator = context.coordinator
-        coordinator.trackingUpdates(arView: nearbyNavigation.arview, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
+        coordinator.trackingUpdates(nearbyNavigation: nearbyNavigation, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
         
         return nearbyNavigation.arview
     }
@@ -199,14 +199,13 @@ private struct ARViewContainer: UIViewRepresentable {
 
     class Coordinator {
         private var timer: Timer?
-        private var subscriptions = [AnyCancellable]()
         
-        func trackingUpdates(arView: ARView, distanceBinding: Binding<Float>, bearingBinding: Binding<Float>, headingBinding: Binding<Float>, isHeadingAvailableBinding: Binding<Bool>) {
+        func trackingUpdates(nearbyNavigation: NearbyNavigationService, distanceBinding: Binding<Float>, bearingBinding: Binding<Float>, headingBinding: Binding<Float>, isHeadingAvailableBinding: Binding<Bool>) {
             // Target position in world space
             let targetWorldPosition = SIMD3<Float>(2.0, 0.0, -4.5)
             
             timer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { _ in
-                guard let frame = arView.session.currentFrame else { return }
+                guard let frame = nearbyNavigation.arview.session.currentFrame else { return }
                 
                 let cameraTransform = frame.camera.transform
                 let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
@@ -226,8 +225,9 @@ private struct ARViewContainer: UIViewRepresentable {
                 // Calculate heading
                 let heading = atan2(forward.x, -forward.z) * 180 / .pi
                 
-                DispatchQueue.main.async {
-                    distanceBinding.wrappedValue = distance
+                // Use MainActor to update bindings from AR calculation loop
+                Task { @MainActor in
+                    distanceBinding.wrappedValue = nearbyNavigation.targetDistance
                     bearingBinding.wrappedValue = bearing
                     headingBinding.wrappedValue = heading
                     isHeadingAvailableBinding.wrappedValue = true

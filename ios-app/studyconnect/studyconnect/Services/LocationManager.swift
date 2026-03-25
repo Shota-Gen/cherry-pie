@@ -7,14 +7,15 @@
 import Foundation
 import CoreLocation
 import MapKit
-import Combine
+import Observation
 
 // Uses CLLocationManagerDelegate pattern as it's the standard CoreLocation API for efficient location tracking.
 // This is the recommended approach by Apple for iOS location updates and is more efficient than
 // AsyncStream wrappers for continuous location monitoring.
-class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+@Observable
+class LocationManager: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
-    @Published var location: CLLocationCoordinate2D?
+    var location: CLLocationCoordinate2D?
     
     override init() {
         super.init()

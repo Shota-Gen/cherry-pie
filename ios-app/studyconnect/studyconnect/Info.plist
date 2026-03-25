@@ -2,14 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSMotionUsageDescription</key>
-	<string>Motion usage is needed</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Local network usage is needed</string>
 	<key>NSNearbyInteractionUsageDescription</key>
-	<string>Nearby interaction is needed</string>
+	<string>nearby interaction is needed</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>local network is needed</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Camera is needed</string>
+	<string>camera is needed</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

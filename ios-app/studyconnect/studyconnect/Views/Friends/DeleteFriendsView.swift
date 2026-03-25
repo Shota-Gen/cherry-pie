@@ -22,31 +22,28 @@ struct DeleteFriendsView: View {
     @State private var selectedFriendIDs: Set<UUID> = []
 
     var body: some View {
-        // ZStack needed: layering background color with content and top navigation bar
-        ZStack {
-            Color(red: 0.95, green: 0.95, blue: 0.95)
-                .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Top bar - ZStack needed: centering title while positioning cancel button on the left
-                ZStack {
-                    Text("Friends")
-                        .font(.system(size: 20, weight: .semibold))
-
-                    HStack {
-                        Button {
-                            dismiss()
-                        } label: {
-                            Text("Cancel")
-                                .font(.system(size: 16, weight: .regular))
-                                .foregroundColor(.blue)
-                        }
-
-                        Spacer()
-                    }
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Cancel")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(.blue)
+                        .frame(minWidth: 60)
                 }
-                .padding()
-                .background(Color.white)
+                
+                Spacer()
+                
+                Text("Friends")
+                    .font(.system(size: 20, weight: .semibold))
+                
+                Spacer()
+                
+                Color.clear.frame(minWidth: 60)
+            }
+            .padding()
+            .background(Color.white)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
@@ -89,11 +86,14 @@ struct DeleteFriendsView: View {
                         .padding(.top, 8)
                 }
                 .disabled(selectedFriendIDs.isEmpty)
-            }
+                
+            .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         }
         .navigationBarHidden(true)
         .onAppear {
-            friends = service.getFriendsList()
+            Task {
+                friends = await service.getFriendsList()
+            }
         }
     }
 
@@ -106,8 +106,10 @@ struct DeleteFriendsView: View {
     }
 
     private func deleteSelectedFriends() {
-        service.deleteFriends(ids: selectedFriendIDs)
-        dismiss()
+        Task {
+            await service.deleteFriends(ids: selectedFriendIDs)
+            dismiss()
+        }
     }
 }
 

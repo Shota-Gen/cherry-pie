@@ -75,7 +75,7 @@ struct SessionInviteRowView: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(12)
     }
 }

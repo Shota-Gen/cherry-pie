@@ -99,9 +99,8 @@ class SupabaseManager {
     }
 
     func ensureUserRowExists(displayNameHint: String? = nil) async {
-        let (userId, email): (UUID?, String?) = await MainActor.run {
-            (self.session?.user.id, self.session?.user.email)
-        }
+        let userId = self.session?.user.id
+        let email = self.session?.user.email
         guard let userId else {
             return
         }
@@ -173,7 +172,7 @@ class SupabaseManager {
     }
     
     func updateLocation(latitude: Double, longitude: Double) async {
-        let userId = await MainActor.run { self.session?.user.id }
+        let userId = self.session?.user.id
         guard let userId else { return }
 
         do {

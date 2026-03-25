@@ -1,20 +1,42 @@
--- Clear the table before seeding
+-- Clear the tables before seeding
+TRUNCATE auth.users CASCADE;
 TRUNCATE public.study_spots, public.users CASCADE;
 
--- Insert auth users (GoTrue requires many non-null string columns)
+-- Insert into auth first (GoTrue scans ALL varchar/text columns into Go strings;
+-- NULL→string causes a crash, so every string column must be explicitly non-NULL.
+-- Exception: phone has a UNIQUE constraint and must stay NULL for users without phones.)
 INSERT INTO auth.users (
-    id, email, aud, role, email_confirmed_at,
-    encrypted_password, confirmation_token, recovery_token,
-    email_change_token_new, email_change, raw_app_meta_data, raw_user_meta_data,
-    instance_id, created_at, updated_at
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at,
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, recovery_token,
+    email_change_token_new, email_change, email_change_token_current,
+    phone_change, phone_change_token,
+    reauthentication_token,
+    is_sso_user, is_anonymous
 )
-VALUES
-    ('6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a', 'sgen@umich.edu',    'authenticated', 'authenticated', now(), '', '', '', '', '', '{"provider":"google","providers":["google"]}'::jsonb, '{}'::jsonb, '00000000-0000-0000-0000-000000000000', now(), now()),
-    ('a1111111-1111-1111-1111-111111111111', 'alice@umich.edu',    'authenticated', 'authenticated', now(), '', '', '', '', '', '{}'::jsonb, '{}'::jsonb, '00000000-0000-0000-0000-000000000000', now(), now()),
-    ('b2222222-2222-2222-2222-222222222222', 'bob@umich.edu',      'authenticated', 'authenticated', now(), '', '', '', '', '', '{}'::jsonb, '{}'::jsonb, '00000000-0000-0000-0000-000000000000', now(), now()),
-    ('c3333333-3333-3333-3333-333333333333', 'carol@umich.edu',    'authenticated', 'authenticated', now(), '', '', '', '', '', '{}'::jsonb, '{}'::jsonb, '00000000-0000-0000-0000-000000000000', now(), now()),
-    ('d4444444-4444-4444-4444-444444444444', 'dave@umich.edu',     'authenticated', 'authenticated', now(), '', '', '', '', '', '{}'::jsonb, '{}'::jsonb, '00000000-0000-0000-0000-000000000000', now(), now()),
-    ('e5555555-5555-5555-5555-555555555555', 'eve@umich.edu',      'authenticated', 'authenticated', now(), '', '', '', '', '', '{}'::jsonb, '{}'::jsonb, '00000000-0000-0000-0000-000000000000', now(), now());
+VALUES 
+    ('6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sgen@umich.edu', '',
+     NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"email":"sgen@umich.edu"}',
+     '', '', '', '', '', '', '', '', false, false),
+    ('a1111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'alice@umich.edu', '',
+     NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"email":"alice@umich.edu"}',
+     '', '', '', '', '', '', '', '', false, false),
+    ('b2222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bob@umich.edu', '',
+     NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"email":"bob@umich.edu"}',
+     '', '', '', '', '', '', '', '', false, false),
+    ('c3333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'carol@umich.edu', '',
+     NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"email":"carol@umich.edu"}',
+     '', '', '', '', '', '', '', '', false, false),
+    ('d4444444-4444-4444-4444-444444444444', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'dave@umich.edu', '',
+     NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"email":"dave@umich.edu"}',
+     '', '', '', '', '', '', '', '', false, false),
+    ('e5555555-5555-5555-5555-555555555555', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'eve@umich.edu', '',
+     NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"email":"eve@umich.edu"}',
+     '', '', '', '', '', '', '', '', false, false),
+    ('52f91d58-3fbb-40ad-b1a7-9e2b8b8e2db3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'anantgar@umich.edu', '',
+     NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"email":"anantgar@umich.edu"}',
+     '', '', '', '', '', '', '', '', false, false);
 
 -- Insert public.users profiles
 -- Shota: no location (will be set by the app)
