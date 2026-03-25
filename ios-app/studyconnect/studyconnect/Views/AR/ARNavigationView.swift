@@ -2,7 +2,6 @@ import SwiftUI
 import RealityKit
 import ARKit
 import UIKit
-import Combine
 
 struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +12,7 @@ struct ARNavigationView: View {
     @State private var isHeadingAvailable = false
 
     var body: some View {
+        // ZStack required for layering AR content with overlaid UI elements (compass arrow, top bar, target card)
         ZStack {
             Color.black
                 .ignoresSafeArea(edges: .all)
@@ -192,7 +192,6 @@ private struct ARViewContainer: UIViewRepresentable {
 
     class Coordinator {
         private var timer: Timer?
-        private var subscriptions = [AnyCancellable]()
         
         func trackingUpdates(arView: ARView, distanceBinding: Binding<Float>, bearingBinding: Binding<Float>, headingBinding: Binding<Float>, isHeadingAvailableBinding: Binding<Bool>) {
             // Target position in world space
@@ -219,7 +218,8 @@ private struct ARViewContainer: UIViewRepresentable {
                 // Calculate heading
                 let heading = atan2(forward.x, -forward.z) * 180 / .pi
                 
-                DispatchQueue.main.async {
+                // Use MainActor to update bindings from AR calculation loop
+                Task { @MainActor in
                     distanceBinding.wrappedValue = distance
                     bearingBinding.wrappedValue = bearing
                     headingBinding.wrappedValue = heading

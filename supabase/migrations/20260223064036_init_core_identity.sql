@@ -16,8 +16,6 @@ CREATE TABLE public.users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-
-
 -- 4. Create the Sessions table
 CREATE TABLE public.sessions (
     session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
