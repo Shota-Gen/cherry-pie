@@ -94,6 +94,7 @@ struct ARNavigationSelectFriendView: View {
                     startARNavigation()
                 } label: {
                     HStack(spacing: 12) {
+                        // ZStack required for layering circle background with centered icon
                         ZStack {
                             Circle()
                                 .fill(Color.white.opacity(0.25))

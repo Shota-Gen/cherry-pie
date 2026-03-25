@@ -83,6 +83,7 @@ struct AddFriendView: View {
         .overlay(alignment: .center) {
             // Success modal overlay
             if showSuccess {
+                // ZStack required for layering modal overlay with semi-transparent dimming background behind content
                 ZStack {
                     Color.black.opacity(0.4)
                         .ignoresSafeArea()
