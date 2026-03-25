@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Auth
 
 class StudySpotService {
 

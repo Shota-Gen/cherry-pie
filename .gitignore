@@ -8,6 +8,7 @@ supabase/functions/.import_map.json
 # --- General ---
 .env
 .env.local
+.env.prod
 .DS_Store
 
 # --- Python (Anant/Josh) ---
