@@ -53,42 +53,55 @@ class FriendsService {
         }
     }
 
-    // Add a friend by ID
+    // Add a friend by ID (creates mutual two-way friendship)
     func addFriend(id: String) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         let client = SupabaseManager.shared.client
+        let myId = userId.uuidString.lowercased()
+        let friendId = id.lowercased()
         
         do {
+            // Insert both directions: me→them and them→me
             try await client
                 .from("friends")
-                .insert([
-                    "user_id": userId.uuidString.lowercased(),
-                    "friend_id": id.lowercased() // Assuming input id is also a UUID string
+                .upsert([
+                    ["user_id": myId, "friend_id": friendId],
+                    ["user_id": friendId, "friend_id": myId]
                 ])
                 .execute()
-            print("✅ Friend added: \(id)")
+            print("✅ Mutual friendship created with: \(id)")
         } catch {
             print("❌ Failed to add friend: \(error.localizedDescription)")
         }
     }
 
-    // Delete a friend
+    // Delete a friend (removes both directions of the mutual friendship)
     func deleteFriends(ids: Set<UUID>) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         guard !ids.isEmpty else { return }
         
         let client = SupabaseManager.shared.client
+        let myId = userId.uuidString.lowercased()
         let friendIdsGroup = ids.map { $0.uuidString.lowercased() }
         
         do {
+            // Delete me→them
             try await client
                 .from("friends")
                 .delete()
-                .eq("user_id", value: userId.uuidString.lowercased())
+                .eq("user_id", value: myId)
                 .in("friend_id", values: friendIdsGroup)
                 .execute()
+            
+            // Delete them→me
+            try await client
+                .from("friends")
+                .delete()
+                .in("user_id", values: friendIdsGroup)
+                .eq("friend_id", value: myId)
+                .execute()
                 
-            print("✅ Deleted friends with IDs: \(friendIdsGroup)")
+            print("✅ Deleted mutual friendships with IDs: \(friendIdsGroup)")
         } catch {
             print("❌ Failed to delete friends: \(error.localizedDescription)")
         }
