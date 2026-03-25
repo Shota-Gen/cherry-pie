@@ -160,35 +160,27 @@ struct EditProfileView: View {
         }
     }
 
-    // @MainActor required to update profile properties from async network fetch
-    @MainActor
     private func loadProfile() async {
         guard let session = supabase.session else { return }
 
-        isLoadingProfile = true
-        defer { isLoadingProfile = false }
-
         do {
             let p = try await service.fetchMyProfile(userId: session.user.id, fallbackEmail: session.user.email)
-            loadedProfile = p
-            displayName = p.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-            major = p.major.trimmingCharacters(in: .whitespacesAndNewlines)
-            profileImage = p.profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let universityYear = p.universityYear {
-                selectedYear = universityYear >= 6 ? "Year 6+" : "Year \(universityYear)"
+            await MainActor.run {
+                loadedProfile = p
+                displayName = p.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                major = p.major.trimmingCharacters(in: .whitespacesAndNewlines)
+                profileImage = p.profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let universityYear = p.universityYear {
+                    selectedYear = universityYear >= 6 ? "Year 6+" : "Year \(universityYear)"
+                }
             }
         } catch {
             print("Edit profile load failed: \(error)")
         }
     }
 
-    // @MainActor required to update profile UI state from async save operation
-    @MainActor
     private func save() async {
         guard let session = supabase.session else { return }
-
-        isSaving = true
-        defer { isSaving = false }
 
         var updated = loadedProfile
         updated.userId = session.user.id
@@ -200,7 +192,9 @@ struct EditProfileView: View {
 
         do {
             try await service.updateProfile(updated)
-            dismiss()
+            await MainActor.run {
+                dismiss()
+            }
         } catch {
             print("Profile save failed: \(error)")
         }

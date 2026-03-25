@@ -267,22 +267,21 @@ struct ProfileView: View {
         .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
     }
 
-    // @MainActor required to update session-dependent UI state from async network operation
-    @MainActor
     private func loadProfile() async {
         guard let session = supabase.session else {
-            profile = .blank()
-            isGhostModeEnabled = false
+            await MainActor.run {
+                profile = .blank()
+                isGhostModeEnabled = false
+            }
             return
         }
 
-        isLoadingProfile = true
-        defer { isLoadingProfile = false }
-
         do {
             let p = try await service.fetchMyProfile(userId: session.user.id, fallbackEmail: session.user.email)
-            profile = p
-            isGhostModeEnabled = p.isInvisible
+            await MainActor.run {
+                profile = p
+                isGhostModeEnabled = p.isInvisible
+            }
         } catch {
             print("Profile load failed: \(error)")
         }

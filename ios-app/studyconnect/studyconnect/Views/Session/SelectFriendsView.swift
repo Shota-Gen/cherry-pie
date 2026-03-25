@@ -82,6 +82,7 @@ struct SelectFriendsView: View {
                 }
                 .disabled(selectedFriendIDs.isEmpty)
             }
+            .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         }
         .navigationBarHidden(true)
         .onAppear {
