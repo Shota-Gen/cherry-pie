@@ -32,10 +32,7 @@ struct SessionDetailsView: View {
     }
 
     var body: some View {
-        // ZStack(alignment: .bottom) needed: positioning action button at bottom of scrollable content
-        ZStack(alignment: .bottom) {
-            Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
-
+        VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
 
@@ -124,7 +121,6 @@ struct SessionDetailsView: View {
 
                                 Spacer()
 
-                                // minLatestEnd constraint enforced both here and via onChange clamping
                                 DatePicker("", selection: $latestEnd, in: minLatestEnd..., displayedComponents: .hourAndMinute)
                                     .labelsHidden()
                             }
@@ -161,8 +157,8 @@ struct SessionDetailsView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 16)
             }
-            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
         }
+        .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationTitle("Session Details")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showDatePicker) {
@@ -354,41 +350,38 @@ private struct RangeDayCell: View {
     }
 
     var body: some View {
-        // ZStack needed: layering range background color with day number and highlight circle
-        ZStack {
-            // Range corridor background (pill effect)
-            if isInRange {
-                Color.blue.opacity(0.12)
-                    .frame(maxWidth: .infinity, maxHeight: 36)
-            } else if isStart && !isSingle {
-                HStack(spacing: 0) {
-                    Color.clear.frame(maxWidth: .infinity)
-                    Color.blue.opacity(0.12).frame(maxWidth: .infinity)
+        Text("\(dayNum)")
+            .font(.system(size: 16, weight: (isStart || isEnd) ? .semibold : .regular))
+            .foregroundColor(
+                isPast ? Color(.systemGray4)
+                : (isStart || isEnd) ? .white
+                : .primary
+            )
+            .frame(width: 36, height: 36)
+            .background((isStart || isEnd) && !isPast ? Color.blue : Color.clear)
+            .clipShape(Circle())
+            .background {
+                // Range corridor background (pill effect)
+                if isInRange {
+                    Color.blue.opacity(0.12)
+                        .frame(maxWidth: .infinity, maxHeight: 36)
+                } else if isStart && !isSingle {
+                    HStack(spacing: 0) {
+                        Color.clear.frame(maxWidth: .infinity)
+                        Color.blue.opacity(0.12).frame(maxWidth: .infinity)
+                    }
+                    .frame(maxHeight: 36)
+                } else if isEnd && !isSingle {
+                    HStack(spacing: 0) {
+                        Color.blue.opacity(0.12).frame(maxWidth: .infinity)
+                        Color.clear.frame(maxWidth: .infinity)
+                    }
+                    .frame(maxHeight: 36)
                 }
-                .frame(maxHeight: 36)
-            } else if isEnd && !isSingle {
-                HStack(spacing: 0) {
-                    Color.blue.opacity(0.12).frame(maxWidth: .infinity)
-                    Color.clear.frame(maxWidth: .infinity)
-                }
-                .frame(maxHeight: 36)
             }
-
-            // Day number
-            Text("\(dayNum)")
-                .font(.system(size: 16, weight: (isStart || isEnd) ? .semibold : .regular))
-                .foregroundColor(
-                    isPast ? Color(.systemGray4)
-                    : (isStart || isEnd) ? .white
-                    : .primary
-                )
-                .frame(width: 36, height: 36)
-                .background((isStart || isEnd) && !isPast ? Color.blue : Color.clear)
-                .clipShape(Circle())
-        }
-        .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
+            .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTap)
     }
 }
 
