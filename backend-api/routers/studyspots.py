@@ -44,14 +44,14 @@ def get_user_study_spot(user_id: str, supabase: SupabaseDep):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@studyspots_router.get("/v1/active-users/", status_code=status.HTTP_200_OK)
-def get_active_users_in_study_spots(supabase: SupabaseDep):
+@studyspots_router.get("/v1/active-users/{user_id}", status_code=status.HTTP_200_OK)
+def get_active_users_in_study_spots(user_id: str, supabase: SupabaseDep):
     """
-    Get all visible users whose last known location is inside a study spot.
+    Get visible friends of the given user whose last known location is inside a study spot.
     Invisible (ghost mode) users are excluded.
     """
     try:
-        data = supabase.rpc("get_users_in_study_spots").execute()
+        data = supabase.rpc("get_users_in_study_spots", {"current_user_id": user_id}).execute()
         return data.data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

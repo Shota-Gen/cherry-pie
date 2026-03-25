@@ -11,15 +11,26 @@ class StudySpotService {
 
     #if DEBUG && targetEnvironment(simulator)
     private let studySpotsURL = URL(string: "http://localhost:8080/studyspots/v1/public/")!
-    private let activeUsersURL = URL(string: "http://localhost:8080/studyspots/v1/active-users/")!
+    private let activeUsersBaseURL = "http://localhost:8080/studyspots/v1/active-users/"
     #else
     // TODO: Replace with production API URL once deployed
     private let studySpotsURL = URL(string: "https://cherry-pie-production.up.railway.app/studyspots/v1/public/")!
-    private let activeUsersURL = URL(string: "https://cherry-pie-production.up.railway.app/studyspots/v1/active-users/")!
+    private let activeUsersBaseURL = "https://cherry-pie-production.up.railway.app/studyspots/v1/active-users/"
     #endif
 
     func getActiveUsers() async -> [ActiveStudyUser] {
-        var request = URLRequest(url: activeUsersURL)
+        // Get the current user's ID to filter by friends
+        guard let userId = SupabaseManager.shared.session?.user.id else {
+            print("Failed to fetch active users: no logged-in user")
+            return []
+        }
+        
+        guard let url = URL(string: activeUsersBaseURL + userId.uuidString.lowercased()) else {
+            print("Failed to fetch active users: invalid URL")
+            return []
+        }
+        
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
