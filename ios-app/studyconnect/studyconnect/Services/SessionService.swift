@@ -76,7 +76,11 @@ class SessionService {
     func createSession(createdBy: UUID, spotId: UUID?, starts: Date, ends: Date, invitedUsers: [UUID]) {
         Task {
             do {
-                let baseURL = "http://127.0.0.1:8080"
+                #if DEBUG && targetEnvironment(simulator)
+                let baseURL = "http://localhost:8080"
+                #else
+                let baseURL = "https://cherry-pie-production.up.railway.app"
+                #endif
                 var components = URLComponents(string: "\(baseURL)/sessions/private")!
                 components.queryItems = [URLQueryItem(name: "creator_id", value: createdBy.uuidString.lowercased())]
 

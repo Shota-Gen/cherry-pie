@@ -6,8 +6,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:54322/postgres
-      - SUPABASE_URL=http://host.docker.internal:54321
+      - DATABASE_URL=${SUPABASE_URI}
+      - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
   # The "Pulse" (Swift UDP Relay)
   # Uncomment once backend-relay has source code (Package.swift, Sources/, etc.)

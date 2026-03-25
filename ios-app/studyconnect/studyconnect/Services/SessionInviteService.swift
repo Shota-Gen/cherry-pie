@@ -11,7 +11,11 @@ import Supabase
 
 class SessionInviteService {
 
-    private let baseURL = "http://127.0.0.1:8080"
+    #if DEBUG && targetEnvironment(simulator)
+    private let baseURL = "http://localhost:8080"
+    #else
+    private let baseURL = "https://cherry-pie-production.up.railway.app"
+    #endif
 
     /// Fetch pending session invites for the signed-in user.
     /// Queries Supabase `session_members` for rows with status 'pending',

@@ -56,7 +56,7 @@ struct DeleteFriendRowView: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(8)
     }
 }

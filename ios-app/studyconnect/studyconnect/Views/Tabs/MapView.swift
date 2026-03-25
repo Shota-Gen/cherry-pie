@@ -87,9 +87,15 @@ struct MapView: View {
         }
         .task(id: "refresh") {
             // Refresh active users every 30 seconds
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(30))
-                activeUsers = await studySpotService.getActiveUsers()
+            do {
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(30))
+                    activeUsers = await studySpotService.getActiveUsers()
+                }
+            } catch is CancellationError {
+                // Task was cancelled (e.g. view disappeared), exit cleanly
+            } catch {
+                print("Refresh task failed: \(error)")
             }
         }
     }
