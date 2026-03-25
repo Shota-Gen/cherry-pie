@@ -23,29 +23,27 @@ struct EditProfileView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
-                // ZStack(alignment: .bottomTrailing) needed: positioning camera button at bottom-right corner of avatar
-                ZStack(alignment: .bottomTrailing) {
-                    AvatarView(name: displayName, imageURL: profileImage, size: 112)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    Color.blue,
-                                    style: StrokeStyle(lineWidth: 2, dash: [6, 6])
-                                )
-                                .padding(-6)
-                        )
-                        .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
-
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(Color.blue)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle().stroke(Color(.systemBackground), lineWidth: 3)
-                        )
-                }
+                AvatarView(name: displayName, imageURL: profileImage, size: 112)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                Color.blue,
+                                style: StrokeStyle(lineWidth: 2, dash: [6, 6])
+                            )
+                            .padding(-6)
+                    )
+                    .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle().stroke(Color(.systemBackground), lineWidth: 3)
+                            )
+                    }
 
                 Text("Change Photo")
                     .font(.subheadline)
@@ -165,14 +163,12 @@ struct EditProfileView: View {
 
         do {
             let p = try await service.fetchMyProfile(userId: session.user.id, fallbackEmail: session.user.email)
-            await MainActor.run {
-                loadedProfile = p
-                displayName = p.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                major = p.major.trimmingCharacters(in: .whitespacesAndNewlines)
-                profileImage = p.profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let universityYear = p.universityYear {
-                    selectedYear = universityYear >= 6 ? "Year 6+" : "Year \(universityYear)"
-                }
+            loadedProfile = p
+            displayName = p.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            major = p.major.trimmingCharacters(in: .whitespacesAndNewlines)
+            profileImage = p.profileImage.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let universityYear = p.universityYear {
+                selectedYear = universityYear >= 6 ? "Year 6+" : "Year \(universityYear)"
             }
         } catch {
             print("Edit profile load failed: \(error)")
@@ -192,9 +188,7 @@ struct EditProfileView: View {
 
         do {
             try await service.updateProfile(updated)
-            await MainActor.run {
-                dismiss()
-            }
+            dismiss()
         } catch {
             print("Profile save failed: \(error)")
         }

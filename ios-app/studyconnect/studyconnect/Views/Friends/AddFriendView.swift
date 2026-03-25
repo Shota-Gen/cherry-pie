@@ -19,18 +19,20 @@ struct AddFriendView: View {
             Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Title bar - ZStack needed: centering title while positioning close button on the left
-                ZStack {
+                HStack(spacing: 12) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.blue)
+                    }
+                    Spacer()
                     Text("Add Friend")
                         .font(.system(size: 20, weight: .semibold))
-                    HStack {
-                        Button { dismiss() } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.blue)
-                        }
-                        Spacer()
-                    }
+                    Spacer()
+                    // Invisible placeholder for symmetry
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.clear)
                 }
                 .padding()
                 .background(Color.white)
@@ -89,15 +91,14 @@ struct AddFriendView: View {
                     .transition(.opacity)
 
                 VStack(spacing: 20) {
-                    // Green checkmark circle - ZStack needed: layering circle background with checkmark icon
-                    ZStack {
-                        Circle()
-                            .fill(Color.green.opacity(0.15))
-                            .frame(width: 80, height: 80)
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 48))
-                            .foregroundColor(.green)
-                    }
+                    Circle()
+                        .fill(Color.green.opacity(0.15))
+                        .frame(width: 80, height: 80)
+                        .overlay {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 48))
+                                .foregroundColor(.green)
+                        }
 
                     Text("Request Sent!")
                         .font(.title2.weight(.bold))

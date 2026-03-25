@@ -21,52 +21,50 @@ struct MapView: View {
     @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
     
     var body: some View {
-        // ZStack(alignment: .top) required for layering Map with AR navigation banner overlay positioned at top
-        ZStack(alignment: .top) {
-            Map(position: $position) {
-                UserAnnotation()
+        Map(position: $position) {
+            UserAnnotation()
 
-                // Render each study spot as a polygon overlay
-                ForEach(studySpots) { spot in
-                    let coords = spot.polygonCoordinates
-                    if coords.count >= 3 {
-                        MapPolygon(coordinates: coords)
-                            .foregroundStyle(.blue.opacity(0.2))
-                            .stroke(.blue, lineWidth: 2)
+            // Render each study spot as a polygon overlay
+            ForEach(studySpots) { spot in
+                let coords = spot.polygonCoordinates
+                if coords.count >= 3 {
+                    MapPolygon(coordinates: coords)
+                        .foregroundStyle(.blue.opacity(0.2))
+                        .stroke(.blue, lineWidth: 2)
 
-                        // Add a label at the centroid
-                        if let center = centroid(of: coords) {
-                            Annotation(spot.name, coordinate: center) {
-                                Image(systemName: "book.fill")
-                                    .foregroundColor(.blue)
-                                    .padding(6)
-                                    .background(.white.opacity(0.85))
-                                    .clipShape(Circle())
-                                    .shadow(radius: 2)
-                            }
+                    // Add a label at the centroid
+                    if let center = centroid(of: coords) {
+                        Annotation(spot.name, coordinate: center) {
+                            Image(systemName: "book.fill")
+                                .foregroundColor(.blue)
+                                .padding(6)
+                                .background(.white.opacity(0.85))
+                                .clipShape(Circle())
+                                .shadow(radius: 2)
                         }
                     }
                 }
+            }
 
-                // Render active users inside study zones
-                ForEach(activeUsers) { user in
-                    Annotation(user.displayName, coordinate: user.coordinate) {
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.white)
-                            .font(.system(size: 12, weight: .bold))
-                            .padding(6)
-                            .background(Color.green)
-                            .clipShape(Circle())
-                            .shadow(radius: 3)
-                    }
+            // Render active users inside study zones
+            ForEach(activeUsers) { user in
+                Annotation(user.displayName, coordinate: user.coordinate) {
+                    Image(systemName: "person.fill")
+                        .foregroundColor(.white)
+                        .font(.system(size: 12, weight: .bold))
+                        .padding(6)
+                        .background(Color.green)
+                        .clipShape(Circle())
+                        .shadow(radius: 3)
                 }
             }
-            .mapControls {
-                MapUserLocationButton()
-                MapCompass()
-                MapPitchToggle()
-            }
-
+        }
+        .mapControls {
+            MapUserLocationButton()
+            MapCompass()
+            MapPitchToggle()
+        }
+        .overlay(alignment: .top) {
             if showARNavigationBanner {
                 ARNavigationBanner {
                     showARNavigationSheet = true
@@ -110,16 +108,14 @@ private struct ARNavigationBanner: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 10) {
-                // ZStack required for layering circle background with arkit icon
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.85))
-                        .frame(width: 30, height: 30)
-
-                    Image(systemName: "arkit")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(red: 0.00, green: 0.47, blue: 1.00))
-                }
+                Circle()
+                    .fill(Color.white.opacity(0.85))
+                    .frame(width: 30, height: 30)
+                    .overlay {
+                        Image(systemName: "arkit")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color(red: 0.00, green: 0.47, blue: 1.00))
+                    }
 
                 Text("AR navigation available")
                     .font(.subheadline)

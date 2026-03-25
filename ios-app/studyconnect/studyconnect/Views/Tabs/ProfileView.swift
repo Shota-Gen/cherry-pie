@@ -269,19 +269,15 @@ struct ProfileView: View {
 
     private func loadProfile() async {
         guard let session = supabase.session else {
-            await MainActor.run {
-                profile = .blank()
-                isGhostModeEnabled = false
-            }
+            profile = .blank()
+            isGhostModeEnabled = false
             return
         }
 
         do {
             let p = try await service.fetchMyProfile(userId: session.user.id, fallbackEmail: session.user.email)
-            await MainActor.run {
-                profile = p
-                isGhostModeEnabled = p.isInvisible
-            }
+            profile = p
+            isGhostModeEnabled = p.isInvisible
         } catch {
             print("Profile load failed: \(error)")
         }
