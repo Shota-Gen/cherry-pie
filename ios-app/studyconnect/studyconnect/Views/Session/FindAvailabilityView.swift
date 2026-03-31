@@ -12,17 +12,16 @@ import Auth
 /// User selects a slot and taps "Send Invites" to create the session via the backend API.
 /// "Back to Home" resets the NavigationPath to pop all the way back to FriendsView.
 struct FindAvailabilityView: View {
-    var config: SessionConfig               // all scheduling params from Step 2
-    @Binding var path: NavigationPath       // parent FriendsView's nav path — reset to pop home
+    var config: SessionConfig               // scheduling parameters from SessionDetailsView
+    @Binding var path: NavigationPath       // parent's nav path (for "Back to Home" reset)
 
-    @Environment(\.supabaseManager) var supabase  // needed for the current user's ID
-    @State private var service = SessionService()  // creates sessions via backend API
-    @State private var slots: [TimeSlot] = []          // computed suggested time slots
-    @State private var selectedSlot: TimeSlot? = nil    // which slot the user has tapped
-    @State private var sessionSent = false              // triggers the confirmation overlay
+    @Environment(\.supabaseManager) var supabase
+    @State private var service = SessionService()
+    @State private var slots: [TimeSlot] = []          // suggested time slots
+    @State private var selectedSlot: TimeSlot? = nil    // user’s chosen slot
+    @State private var sessionSent = false              // confirmation overlay
 
-    /// Groups time slots by their calendar day and sorts each group chronologically.
-    /// This drives the sectioned slot list in the UI ("Today", "Tomorrow", "Mar 5", etc.).
+    // Group slots by calendar day, sorted chronologically
     private var slotsByDay: [(day: Date, slots: [TimeSlot])] {
         var dict: [Date: [TimeSlot]] = [:]
         for slot in slots {
@@ -157,18 +156,16 @@ struct FindAvailabilityView: View {
 
     // MARK: - Subviews
 
-    /// Overlapping avatar row showing up to 5 invited friends.
-    /// Negative spacing (-11px on 36px avatars) creates a ~30% overlap effect.
     private var stackedAvatars: some View {
+        // Negative spacing creates ~30% overlap: size 36, spacing -11 → 11/36 ≈ 30%
         HStack(spacing: -11) {
             ForEach(Array(config.selectedFriends.prefix(5))) { friend in
                 AvatarView(name: friend.displayTitle, imageURL: friend.profileImage, size: 36)
-                    .overlay(Circle().stroke(Color.white, lineWidth: 2))  // white ring separates overlapping avatars
+                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
             }
         }
     }
 
-    /// Section header that shows "Today", "Tomorrow", or a date string like "Mar 5".
     @ViewBuilder
     private func dayHeader(for date: Date) -> some View {
         let (primary, secondary) = dayLabelParts(date)
@@ -185,31 +182,25 @@ struct FindAvailabilityView: View {
         .padding(.top, 4)
     }
 
-    /// Individual time slot card. Shows time range, availability status
-    /// (green checkmark if everyone is free, amber warning if some are busy),
-    /// and a blue border when selected.
     @ViewBuilder
     private func slotCard(_ slot: TimeSlot) -> some View {
         let isSelected = selectedSlot?.id == slot.id
         Button { selectedSlot = slot } label: {
             VStack(alignment: .leading, spacing: 6) {
-                // Time range label (e.g. "2:00 PM – 4:00 PM")
                 Text(timeRange(from: slot.start, to: slot.end))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.primary)
 
                 if slot.isEveryoneFree {
-                    // All invited friends are available for this slot
                     Label("Everyone is free", systemImage: "checkmark.circle.fill")
                         .font(.caption.weight(.medium))
                         .foregroundColor(.green)
                 } else {
-                    // Partial availability — show count and list missing friends
                     let avail = slot.availableFriends.count
                     let total = config.selectedFriends.count
                     Label("\(avail)/\(total) friends available", systemImage: "exclamationmark.circle.fill")
                         .font(.caption.weight(.medium))
-                        .foregroundColor(Color(red: 0.85, green: 0.6, blue: 0.0))  // amber warning
+                        .foregroundColor(Color(red: 0.85, green: 0.6, blue: 0.0))
                     Text("Missing: \(slot.busyFriends.map(\.displayTitle).joined(separator: ", "))")
                         .font(.caption)
                         .foregroundColor(.gray)
@@ -219,7 +210,6 @@ struct FindAvailabilityView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.white)
             .cornerRadius(12)
-            // Blue border highlights the currently selected slot
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
@@ -230,7 +220,6 @@ struct FindAvailabilityView: View {
 
     // MARK: - Helpers
 
-    /// Returns ("Today", "Mar 5") or ("Tomorrow", "Mar 6") or just ("Mar 7", nil)
     private func dayLabelParts(_ date: Date) -> (String, String?) {
         let cal = Calendar.current
         let fmt = DateFormatter()
@@ -241,16 +230,12 @@ struct FindAvailabilityView: View {
         return (dateStr, nil)
     }
 
-    /// Formats a start–end time pair as "2:00 PM – 4:00 PM"
     private func timeRange(from start: Date, to end: Date) -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "h:mm a"
         return "\(fmt.string(from: start)) – \(fmt.string(from: end))"
     }
 
-    /// Creates the session on the backend and triggers the confirmation overlay.
-    /// Extracts the current user's ID from the Supabase session, then calls
-    /// SessionService.createSession with the selected time slot and invitee UUIDs.
     private func sendInvites() {
         guard let slot = selectedSlot,
               let userId = supabase.session?.user.id else { return }

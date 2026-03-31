@@ -12,36 +12,31 @@ import Auth
 /// Loads the current profile on appear and saves changes to Supabase.
 /// Year picker uses a Menu-based dropdown ("Year 1" through "Year 6+").
 struct EditProfileView: View {
-    @Environment(\.supabaseManager) var supabase          // auth session for user ID
-    @Environment(\.dismiss) private var dismiss             // pops back to ProfileView on save
-    @State private var service = ProfileService()           // Supabase profile read/write
-    @State private var loadedProfile = UserProfile.blank()  // original profile snapshot — used as base for saves
-    @State private var displayName = ""                     // text field binding
-    @State private var major = ""                           // text field binding
-    @State private var selectedYear = "Year 1"              // dropdown selection
-    @State private var profileImage = ""                    // URL string (currently display-only)
+    @Environment(\.supabaseManager) var supabase
+    @Environment(\.dismiss) private var dismiss
+    @State private var service = ProfileService()
+    @State private var loadedProfile = UserProfile.blank()  // snapshot for saving
+    @State private var displayName = ""
+    @State private var major = ""
+    @State private var selectedYear = "Year 1"
+    @State private var profileImage = ""
     @State private var isLoadingProfile = false
     @State private var isSaving = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
-                // ── Avatar with camera badge ──
-                // Large avatar with a dashed blue border ring and a camera
-                // icon badge in the bottom-right corner (photo upload placeholder).
                 AvatarView(name: displayName, imageURL: profileImage, size: 112)
                     .overlay(
-                        // Dashed circle border around the avatar
                         Circle()
                             .stroke(
                                 Color.blue,
                                 style: StrokeStyle(lineWidth: 2, dash: [6, 6])
                             )
-                            .padding(-6)  // extend slightly beyond the avatar
+                            .padding(-6)
                     )
                     .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
                     .overlay(alignment: .bottomTrailing) {
-                        // Camera badge — visual affordance for future photo upload
                         Image(systemName: "camera.fill")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
@@ -57,16 +52,12 @@ struct EditProfileView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                // ── Form fields: name, major, year ──
                 VStack(spacing: 18) {
                     labeledTextField(title: "Full Name", text: $displayName, icon: "person")
                     labeledTextField(title: "Major", text: $major, icon: "book")
-                    yearDropdownField  // Menu-style year picker
+                    yearDropdownField
                 }
 
-                // ── Save button ──
-                // Fires save() which upserts the profile to Supabase then dismisses.
-                // Disabled while loading, saving, or when there's no session.
                 Button {
                     Task { await save() }
                 } label: {
@@ -90,14 +81,11 @@ struct EditProfileView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Edit Profile")
         .navigationBarTitleDisplayMode(.inline)
-        // Load current profile data into form fields on appear
         .task { await loadProfile() }
     }
 
     private let yearOptions = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6+"]
 
-    /// Converts the display string ("Year 3") to an Int (3) for the backend.
-    /// "Year 6+" maps to 6.
     private var parsedYear: Int? {
         if selectedYear == "Year 6+" {
             return 6
@@ -106,8 +94,6 @@ struct EditProfileView: View {
         return Int(digits)
     }
 
-    /// Reusable styled text field with a label header and an icon badge.
-    /// Used for "Full Name" and "Major" fields.
     private func labeledTextField(title: String, text: Binding<String>, icon: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -134,8 +120,6 @@ struct EditProfileView: View {
         }
     }
 
-    /// Year selector using Menu (dropdown) instead of a Picker.
-    /// Shows a graduation cap icon and chevron-down affordance.
     private var yearDropdownField: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Year")
@@ -177,8 +161,6 @@ struct EditProfileView: View {
         }
     }
 
-    /// Fetches the user's profile from Supabase and populates all form fields.
-    /// Called via .task when the view first appears.
     private func loadProfile() async {
         guard let session = supabase.session else { return }
 
@@ -196,9 +178,6 @@ struct EditProfileView: View {
         }
     }
 
-    /// Saves edits back to Supabase. Builds an updated UserProfile from the
-    /// original loadedProfile snapshot + current form field values, then calls
-    /// ProfileService.updateProfile. On success, dismisses back to ProfileView.
     private func save() async {
         guard let session = supabase.session else { return }
 

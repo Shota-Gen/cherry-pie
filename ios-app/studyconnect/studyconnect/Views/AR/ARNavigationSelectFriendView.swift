@@ -19,24 +19,23 @@ struct ARNavigationSelectFriendView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var friends: [UserProfile] = []
-    @State private var service = FriendsService()       // @State per RULES.md (@Observable service)
-    @State private var selectedFriendID: UUID? = nil   // single-select radio — only one friend at a time
-    @State private var navigateToAR = false             // programmatic NavigationLink trigger
+    @State private var service = FriendsService()
+    @State private var selectedFriendID: UUID? = nil   // single-select radio
+    @State private var navigateToAR = false             // triggers NavigationLink
 
-    @State private var showCameraPermissionAlert = false  // alert for first-time deny
-    @State private var showCameraSettingsAlert = false    // alert directing user to Settings
+    @State private var showCameraPermissionAlert = false
+    @State private var showCameraSettingsAlert = false
     @State private var cameraPermissionMessage = ""
 
-    private let permissionService = ARCameraPermissionService()  // records permission analytics
+    private let permissionService = ARCameraPermissionService()
 
     var body: some View {
         VStack(spacing: 0) {
-            // ── Header bar with back button ──
+            // Header
                 Text("Select Friend to Navigate to")
                     .font(.system(size: 18, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .overlay(alignment: .leading) {
-                        // Back chevron dismisses this screen
                         Button {
                             dismiss()
                         } label: {
@@ -57,7 +56,6 @@ struct ARNavigationSelectFriendView: View {
 
                 ScrollView {                    
                     VStack(alignment: .leading, spacing: 16) {
-                        // Section header for nearby friends
                         Text("WITHIN 20 METERS")
                             .font(.caption)
                             .fontWeight(.semibold)
@@ -65,8 +63,6 @@ struct ARNavigationSelectFriendView: View {
                             .padding(.horizontal)
 
                         VStack(spacing: 10) {
-                            // Radio-button style: tapping a row sets selectedFriendID,
-                            // causing the checkmark to appear on that row only.
                             ForEach(friends) { friend in
                                 Button {
                                     selectedFriendID = friend.userId
@@ -82,8 +78,6 @@ struct ARNavigationSelectFriendView: View {
                     .padding(.bottom, 16)
                 }
 
-                // Hidden programmatic NavigationLink — activated by setting
-                // navigateToAR = true after camera permission is confirmed.
                 NavigationLink(
                     destination: destinationView,
                     isActive: $navigateToAR
@@ -92,8 +86,6 @@ struct ARNavigationSelectFriendView: View {
                 }
                 .hidden()
 
-                // "Start AR Navigation" CTA button — disabled until a friend is selected.
-                // On tap, checks camera permission before navigating.
                 Button {
                     startARNavigation()
                 } label: {
@@ -112,7 +104,6 @@ struct ARNavigationSelectFriendView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        // Gradient when enabled, flat gray when disabled
                         LinearGradient(
                             colors: canStart ? [Color(red: 0.22, green: 0.61, blue: 0.99), Color(red: 0.44, green: 0.70, blue: 1.00)] : [Color.gray.opacity(0.55), Color.gray.opacity(0.55)],
                             startPoint: .leading,
@@ -129,24 +120,19 @@ struct ARNavigationSelectFriendView: View {
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
-            // Fetch-once pattern: only load if friends array is empty
             if friends.isEmpty {
                 Task {
                     friends = await service.getSuggestedFriends()
                 }
             }
         }
-        // Alert shown when camera access was just denied by the user
         .alert("Camera Access Required", isPresented: $showCameraPermissionAlert) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(cameraPermissionMessage)
         }
-        // Alert shown when camera was previously denied — offers a direct
-        // link to the iOS Settings app so the user can re-enable the permission.
         .alert("Camera Access Denied", isPresented: $showCameraSettingsAlert) {
             Button("Open Settings") {
-                // UIApplication.openSettingsURLString deep-links to this app's Settings page
                 guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
                 openURL(settingsURL)
             }
@@ -156,23 +142,18 @@ struct ARNavigationSelectFriendView: View {
         }
     }
 
-    /// Checks AVCaptureDevice authorization and either navigates to AR,
-    /// requests permission, or shows a Settings redirect alert.
     private func startARNavigation() {
         guard canStart else { return }
 
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         switch status {
         case .authorized:
-            // Already granted — go straight to AR
             permissionService.recordPermissionGranted(true)
             navigateToAR = true
 
         case .notDetermined:
-            // First-time prompt — system dialog appears
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                // Callback runs on arbitrary thread; dispatch to @MainActor
-                // for SwiftUI state updates (per RULES.md async/await pattern)
+                // Use MainActor to update UI state from camera permission callback
                 Task { @MainActor in
                     permissionService.recordPermissionGranted(granted)
                     if granted {
@@ -185,7 +166,6 @@ struct ARNavigationSelectFriendView: View {
             }
 
         case .denied, .restricted:
-            // Previously denied — can't re-prompt; direct to Settings
             cameraPermissionMessage = "When camera access is denied, AR navigation cannot run. Please update permissions in Settings."
             showCameraSettingsAlert = true
 
@@ -204,9 +184,6 @@ struct ARNavigationSelectFriendView: View {
         return friends.first { $0.userId == id }
     }
 
-    /// @ViewBuilder destination: returns ARNavigationView for the selected
-    /// friend, or EmptyView if none is selected (shouldn't happen since
-    /// the button is disabled without a selection).
     @ViewBuilder
     private var destinationView: some View {
         if let friend = selectedFriend {

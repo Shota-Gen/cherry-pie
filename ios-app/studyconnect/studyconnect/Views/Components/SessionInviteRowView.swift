@@ -15,9 +15,7 @@ struct SessionInviteRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // ── Top row: sender avatar, name, subtitle, and relative timestamp ──
             HStack(spacing: 12) {
-                // Sender's avatar
                 AvatarView(name: invite.fromUser.displayTitle, imageURL: invite.fromUser.profileImage, size: 44)
                     .frame(width: 44, height: 44)
 
@@ -34,13 +32,11 @@ struct SessionInviteRowView: View {
 
                 Spacer()
 
-                // Relative time since invite was created (e.g. "2m ago")
                 Text(invite.createdTimeAgo)
                     .font(.caption)
                     .foregroundColor(.gray)
             }
 
-            // ── Time slot info line: clock icon + "Wednesday, 2:00 PM - 5:00 PM" ──
             HStack(spacing: 4) {
                 Image(systemName: "clock.circle.fill")
                     .font(.system(size: 14, weight: .semibold))
@@ -52,9 +48,7 @@ struct SessionInviteRowView: View {
                     .foregroundColor(.gray)
             }
 
-            // ── Action buttons ──
             HStack(spacing: 10) {
-                // Decline button: neutral gray, calls parent's onDecline closure
                 Button {
                     onDecline()
                 } label: {
@@ -68,7 +62,6 @@ struct SessionInviteRowView: View {
                         .cornerRadius(8)
                 }
 
-                // Accept button: prominent blue, calls parent's onAccept closure
                 Button {
                     onAccept()
                 } label: {
