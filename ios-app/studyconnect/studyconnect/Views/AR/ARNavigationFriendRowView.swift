@@ -7,8 +7,6 @@
 
 import SwiftUI
 
-/// Styled row for the AR friend selection list.  Shows avatar, name,
-/// distance in meters, and a blue checkmark when selected.
 struct ARNavigationFriendRowView: View {
     let friend: UserProfile
     var isSelected: Bool = false

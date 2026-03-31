@@ -15,9 +15,6 @@
 
 import SwiftUI
 
-/// Multi-select interface for removing friends.  Shows all friends with red
-/// minus-circle selection indicators.  "Delete Selected" button removes
-/// mutual friendships (both directions) and dismisses the view.
 struct DeleteFriendsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var friends: [UserProfile] = []

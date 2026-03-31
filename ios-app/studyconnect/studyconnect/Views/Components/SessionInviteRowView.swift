@@ -6,12 +6,10 @@
 
 import SwiftUI
 
-/// Displays a single session invite with sender info, time range,
-/// and Accept/Decline action buttons.  Used in FriendsView’s pending invites section.
 struct SessionInviteRowView: View {
     let invite: SessionInvite
-    let onAccept: () -> Void     // callback when user taps Accept
-    let onDecline: () -> Void    // callback when user taps Decline
+    let onAccept: () -> Void
+    let onDecline: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

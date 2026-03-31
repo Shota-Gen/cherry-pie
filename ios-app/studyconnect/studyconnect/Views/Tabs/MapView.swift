@@ -7,15 +7,12 @@
 import SwiftUI
 import MapKit
 
-/// Main map tab.  Shows the user's location, study spot polygons, active user
-/// pins, and an AR navigation banner.  Refreshes active users every 30 seconds
-/// using structured concurrency (Task.sleep loop).
 struct MapView: View {
-    @State private var locManager = LocationManager()       // owns location tracking
-    @State private var showARNavigationSheet = false         // AR flow full-screen cover
-    @State private var showARNavigationBanner = true         // top banner visibility
-    @State private var studySpots: [StudySpot] = []          // polygon zones from API
-    @State private var activeUsers: [ActiveStudyUser] = []   // friends at study spots
+    @State private var locManager = LocationManager()
+    @State private var showARNavigationSheet = false
+    @State private var showARNavigationBanner = true
+    @State private var studySpots: [StudySpot] = []
+    @State private var activeUsers: [ActiveStudyUser] = []
     
     private let studySpotService = StudySpotService()
     

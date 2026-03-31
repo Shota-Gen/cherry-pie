@@ -7,18 +7,14 @@
 
 import SwiftUI
 
-/// Friends tab — central hub for friend management and session scheduling.
-/// Owns a typed NavigationStack (NavigationPath + FriendsRoute enum) that
-/// drives the entire session flow: SelectFriends → SessionDetails → FindAvailability.
-/// Also shows pending session invites with accept/decline actions.
 struct FriendsView: View {
-    @State private var friends: [UserProfile] = []         // fetched friend list
-    @State private var service = FriendsService()          // friend CRUD service
-    @State private var path = NavigationPath()             // typed nav stack path
-    @State private var pendingInvites: [SessionInvite] = [] // pending session invites
+    @State private var friends: [UserProfile] = []
+    @State private var service = FriendsService()
+    @State private var path = NavigationPath()
+    @State private var pendingInvites: [SessionInvite] = []
     @State private var inviteService = SessionInviteService()
-    @State private var showAcceptedModal = false            // accepted-invite modal
-    @State private var acceptedInvite: SessionInvite?       // currently accepted invite
+    @State private var showAcceptedModal = false
+    @State private var acceptedInvite: SessionInvite?
 
     var body: some View {
         NavigationStack(path: $path) {

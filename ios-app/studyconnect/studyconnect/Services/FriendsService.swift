@@ -10,14 +10,9 @@ import Auth
 import Supabase
 internal import PostgREST
 
-/// Handles all friend-related operations against the Supabase `friends` and
-/// `users` tables.  No @Observable — stateless service instantiated as @State
-/// inside views that need it.
 class FriendsService {
 
-    /// Fetches the signed-in user’s friends list.
-    /// Two-step query: (1) get friend IDs from `friends` table, (2) fetch
-    /// their profile data from `users` table.
+    // Fetch friends list from Supabase
     func getFriendsList() async -> [UserProfile] {
         guard let userId = SupabaseManager.shared.session?.user.id else { return [] }
         let client = SupabaseManager.shared.client
@@ -58,8 +53,7 @@ class FriendsService {
         }
     }
 
-    /// Creates a bidirectional friendship by upserting two rows in the `friends` table
-    /// (me→them and them→me).  Uses upsert to avoid duplicate key errors.
+    // Add a friend by ID (creates mutual two-way friendship)
     func addFriend(id: String) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         let client = SupabaseManager.shared.client
@@ -81,7 +75,7 @@ class FriendsService {
         }
     }
 
-    /// Removes both directions of mutual friendships for the given set of friend IDs.
+    // Delete a friend (removes both directions of the mutual friendship)
     func deleteFriends(ids: Set<UUID>) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         guard !ids.isEmpty else { return }
@@ -113,9 +107,7 @@ class FriendsService {
         }
     }
 
-    /// Returns friends to suggest for session invitations.
-    /// STUB: currently just delegates to getFriendsList(); will be replaced
-    /// with a real suggestion algorithm (e.g., nearby users, frequent partners).
+    // Returns suggested friends to invite to a session.
     func getSuggestedFriends() async -> [UserProfile] {
         return await getFriendsList()
     }

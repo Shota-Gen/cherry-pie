@@ -7,15 +7,12 @@
 
 import Foundation
 
-/// A suggested study time slot returned by SessionService.
-/// Contains the friends who are available vs busy during this window.
 struct TimeSlot: Identifiable, Hashable {
     let id: UUID
-    let start: Date                           // slot start time
-    let end: Date                             // slot end time
-    let availableFriends: [UserProfile]       // friends free during this slot
-    let busyFriends: [UserProfile]            // friends with conflicts
+    let start: Date
+    let end: Date
+    let availableFriends: [UserProfile]
+    let busyFriends: [UserProfile]
 
-    /// True when every invited friend is available.
     var isEveryoneFree: Bool { busyFriends.isEmpty }
 }

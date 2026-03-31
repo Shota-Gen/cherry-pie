@@ -8,18 +8,15 @@
 import SwiftUI
 import Auth
 
-/// Step 3 (final) of session scheduling: shows suggested time slots grouped by day.
-/// User selects a slot and taps "Send Invites" to create the session via the backend API.
-/// "Back to Home" resets the NavigationPath to pop all the way back to FriendsView.
 struct FindAvailabilityView: View {
-    var config: SessionConfig               // scheduling parameters from SessionDetailsView
-    @Binding var path: NavigationPath       // parent's nav path (for "Back to Home" reset)
+    var config: SessionConfig
+    @Binding var path: NavigationPath
 
     @Environment(\.supabaseManager) var supabase
     @State private var service = SessionService()
-    @State private var slots: [TimeSlot] = []          // suggested time slots
-    @State private var selectedSlot: TimeSlot? = nil    // user’s chosen slot
-    @State private var sessionSent = false              // confirmation overlay
+    @State private var slots: [TimeSlot] = []
+    @State private var selectedSlot: TimeSlot? = nil
+    @State private var sessionSent = false
 
     // Group slots by calendar day, sorted chronologically
     private var slotsByDay: [(day: Date, slots: [TimeSlot])] {

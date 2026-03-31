@@ -9,16 +9,13 @@ import SwiftUI
 import Auth
 import UIKit
 
-/// Profile tab — displays the user’s avatar, UID (tap to copy), focus time stat,
-/// ghost mode / push notification toggles, and sign-out.  Loads profile data
-/// from Supabase on appear.  Ghost mode toggle immediately syncs to backend.
 struct ProfileView: View {
     @Environment(\.supabaseManager) var supabase
     @State private var service = ProfileService()
-    @State private var profile = UserProfile.blank()        // fetched profile data
-    @State private var isGhostModeEnabled = true             // "hide location" toggle
+    @State private var profile = UserProfile.blank()
+    @State private var isGhostModeEnabled = true
     @State private var isPushNotificationsEnabled = true
-    @State private var didCopyUID = false                    // clipboard feedback
+    @State private var didCopyUID = false
     @State private var isLoadingProfile = false
     @State private var showingSignOutConfirmation = false
 

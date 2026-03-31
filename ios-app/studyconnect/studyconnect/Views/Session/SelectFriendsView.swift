@@ -7,14 +7,11 @@
 
 import SwiftUI
 
-/// Step 1 of session scheduling: pick which friends to invite.
-/// Shows suggested friends (currently = full friends list) with checkbox selection.
-/// "Session Details" button pushes SessionDetailsView via FriendsRoute.
 struct SelectFriendsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var friends: [UserProfile] = []         // loaded from service
+    @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
-    @State private var selectedFriendIDs: Set<UUID> = []   // checked friends
+    @State private var selectedFriendIDs: Set<UUID> = []
 
     var body: some View {
         VStack(spacing: 0) {

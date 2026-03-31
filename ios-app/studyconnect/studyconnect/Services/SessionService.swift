@@ -7,9 +7,6 @@
 
 import Foundation
 
-/// Handles session scheduling: generating suggested time slots and creating
-/// sessions via the backend REST API.  Note: `getSuggestedSlots` is currently
-/// a STUB returning random data; will be replaced by Google Calendar + LLM.
 class SessionService {
     
 

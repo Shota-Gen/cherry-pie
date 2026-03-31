@@ -6,16 +6,8 @@ import Observation
 import GoogleSignIn
 import CryptoKit
 
-/// Central auth & backend manager.  Uses @Observable (Observation framework)
-/// instead of ObservableObject/@Published per RULES.md.  Owns the Supabase
-/// client, manages the auth session, handles Google Sign-In, bootstraps the
-/// user row in `public.users`, and pushes location updates.
-///
-/// Injected into the view hierarchy via a custom EnvironmentKey at the bottom
-/// of this file, so views access it with `@Environment(\.supabaseManager)`.
 @Observable
 class SupabaseManager {
-    /// Shared singleton — passed into the environment in studyconnectApp.
     static let shared = SupabaseManager()
     
     #if DEBUG && targetEnvironment(simulator)
@@ -38,12 +30,8 @@ class SupabaseManager {
         )
     )
     
-    /// Current Supabase auth session.  When nil, ContentView shows LoginView;
-    /// when non-nil, shows the main TabView.  Updated on sign-in/sign-out.
     var session: Session? = nil
     
-    /// On init, attempt to restore any persisted session and ensure the
-    /// corresponding user row exists in the database.
     init() {
         Task {
             do {
@@ -58,14 +46,6 @@ class SupabaseManager {
         }
     }
 
-    /// Full Google OAuth sign-in flow:
-    ///  1. Generate a cryptographic nonce for OIDC replay protection
-    ///  2. Present Google Sign-In UI via GIDSignIn
-    ///  3. Exchange the Google ID token with Supabase for a session
-    ///  4. Ensure a user row exists in `public.users`
-    ///
-    /// @MainActor is used in two spots: to obtain the root view controller
-    /// (UIKit requirement) and to publish the session change (UI update).
     func signInWithGoogle() async {
         do {
             // 1. Generate a random 'nonce' string
@@ -114,15 +94,10 @@ class SupabaseManager {
         }
     }
 
-    /// Convenience wrapper — called when the app needs to re-link the device.
     func linkDeviceToUser() async {
         await ensureUserRowExists()
     }
 
-    /// Guarantees a row exists in `public.users` for the signed-in user.
-    /// - If the row exists: updates `device_id` and optionally upgrades
-    ///   `display_name` from the Google profile (one-time).
-    /// - If no row: inserts a new one with device ID and derived display name.
     func ensureUserRowExists(displayNameHint: String? = nil) async {
         let userId = self.session?.user.id
         let email = self.session?.user.email
@@ -196,8 +171,6 @@ class SupabaseManager {
         }
     }
     
-    /// Writes the device's current GPS coordinates to the user's row in Supabase.
-    /// Called by LocationManager on every significant location change.
     func updateLocation(latitude: Double, longitude: Double) async {
         let userId = self.session?.user.id
         guard let userId else { return }
@@ -220,9 +193,6 @@ class SupabaseManager {
         }
     }
 
-    /// Signs out of both Supabase and Google, then clears the session.
-    /// @MainActor justified: GIDSignIn.signOut() must run on main thread,
-    /// and clearing `session` triggers immediate UI update to LoginView.
     func signOut() async {
         do {
             try await client.auth.signOut()
@@ -230,7 +200,6 @@ class SupabaseManager {
             print("❌ Supabase sign out failed: \(error.localizedDescription)")
         }
 
-        // @MainActor justified: GIDSignIn requires main thread, session update drives UI
         await MainActor.run {
             GIDSignIn.sharedInstance.signOut()
             self.session = nil
@@ -264,8 +233,7 @@ extension String {
     }
 }
 
-/// Type-erased Encodable wrapper.  Allows building `[String: AnyEncodable]`
-/// dictionaries with mixed value types for Supabase `.update()` calls.
+// Helper to handle mixed types for Supabase updates ? .. not tested
 struct AnyEncodable: Encodable {
     private let _encode: (Encoder) throws -> Void
     init<T: Encodable>(_ value: T) {
@@ -277,8 +245,6 @@ struct AnyEncodable: Encodable {
 }
 
 // MARK: - Environment Integration
-// Custom EnvironmentKey so views use @Environment(\.supabaseManager)
-// instead of the legacy @EnvironmentObject pattern (per RULES.md).
 
 private struct SupabaseManagerKey: EnvironmentKey {
     static let defaultValue: SupabaseManager = .shared

@@ -7,12 +7,10 @@
 
 import SwiftUI
 
-/// Allows the user to add a friend by entering their UID.
-/// On success, displays an animated modal overlay confirming the request was sent.
 struct AddFriendView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var uid: String = ""           // friend's UID input
-    @State private var showSuccess = false         // controls success modal overlay
+    @State private var uid: String = ""
+    @State private var showSuccess = false
     @State private var service = FriendsService()
 
     var body: some View {
