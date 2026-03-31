@@ -8,7 +8,6 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers.users import router as users_router
 from routers.studyspots import studyspots_router as studyspots_router
 from routers.sessions import router as sessions_router
 app = FastAPI(
