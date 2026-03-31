@@ -2,12 +2,15 @@
 //  StudySpotService.swift
 //  studyconnect
 //
-//  Handles fetching study spots and active users from the backend API.
+//  Fetches study spots (polygon zones) and active users from the
+//  backend REST API.  Used by MapView for polygon overlays and user pins.
 //
 
 import Foundation
 import Auth
 
+/// Fetches study spot polygons and active-user locations from the backend API.
+/// Switches between localhost (simulator) and production (device) URLs.
 class StudySpotService {
 
     #if DEBUG && targetEnvironment(simulator)

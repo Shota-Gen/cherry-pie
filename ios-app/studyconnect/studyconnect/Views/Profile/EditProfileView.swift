@@ -8,11 +8,14 @@
 import SwiftUI
 import Auth
 
+/// Edit profile form: avatar, display name, major, university year.
+/// Loads the current profile on appear and saves changes to Supabase.
+/// Year picker uses a Menu-based dropdown ("Year 1" through "Year 6+").
 struct EditProfileView: View {
     @Environment(\.supabaseManager) var supabase
     @Environment(\.dismiss) private var dismiss
     @State private var service = ProfileService()
-    @State private var loadedProfile = UserProfile.blank()
+    @State private var loadedProfile = UserProfile.blank()  // snapshot for saving
     @State private var displayName = ""
     @State private var major = ""
     @State private var selectedYear = "Year 1"

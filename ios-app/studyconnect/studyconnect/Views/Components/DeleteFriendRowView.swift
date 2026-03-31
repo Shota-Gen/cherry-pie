@@ -5,9 +5,11 @@
 
 import SwiftUI
 
+/// Friend row variant for the delete flow.  Shows a red minus-circle button
+/// that fills when selected.  Used in DeleteFriendsView.
 struct DeleteFriendRowView: View {
     let friend: UserProfile
-    let isSelected: Bool
+    let isSelected: Bool   // red circle fills when true
 
     var body: some View {
         HStack(spacing: 12) {

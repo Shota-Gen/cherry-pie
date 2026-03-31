@@ -7,13 +7,17 @@
 
 import Foundation
 
+/// A pending study session invitation.  Built from Supabase `session_members`
+/// + `sessions` + `users` tables by SessionInviteService.  Computed properties
+/// handle all display formatting for the invite row UI.
 struct SessionInvite: Identifiable {
-    let id: UUID
-    let fromUser: UserProfile
+    let id: UUID                  // session UUID (used for accept/decline API calls)
+    let fromUser: UserProfile     // who created the session
     let startTime: Date
     let endTime: Date
     let createdAt: Date
     
+    /// Formatted time range, e.g. "2:00 PM - 5:00 PM"
     var timeRange: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
@@ -22,6 +26,7 @@ struct SessionInvite: Identifiable {
         return "\(start) - \(end)"
     }
     
+    /// Human-readable day label: "Today", "Tomorrow", or "MMM d"
     var dayLabel: String {
         let today = Calendar.current.startOfDay(for: Date())
         let inviteDay = Calendar.current.startOfDay(for: startTime)
@@ -37,6 +42,7 @@ struct SessionInvite: Identifiable {
         }
     }
     
+    /// Relative timestamp: "now", "5m ago", "2h ago", "1d ago"
     var createdTimeAgo: String {
         let interval = Date().timeIntervalSince(createdAt)
         

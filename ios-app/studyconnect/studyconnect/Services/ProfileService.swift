@@ -8,6 +8,9 @@
 import Foundation
 import Supabase
 
+/// Manages the signed-in user’s profile CRUD operations against the
+/// `public.users` table via the Supabase Swift SDK.  Stateless service;
+/// views create it as `@State private var service = ProfileService()`.
 class ProfileService {
     private let client: SupabaseClient
 
@@ -15,6 +18,9 @@ class ProfileService {
         self.client = client
     }
 
+    /// Fetches the user’s profile from Supabase.  If no row exists (first login),
+    /// creates one via upsert and refetches.  `fallbackEmail` is used to derive
+    /// a display name when no Google name is available yet.
     func fetchMyProfile(userId: UUID, fallbackEmail: String? = nil) async throws -> UserProfile {
         if let row = try await fetchUserRow(userId: userId) {
             var profile = row.toUserProfile()

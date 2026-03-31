@@ -7,8 +7,11 @@
 
 import SwiftUI
 
+/// Step 2 of session scheduling: configure date range, duration, and time window.
+/// Includes a custom date-range picker sheet with calendar grid and range highlighting.
+/// "Find Availability" button pushes FindAvailabilityView via FriendsRoute.
 struct SessionDetailsView: View {
-    var selectedFriends: [UserProfile]
+    var selectedFriends: [UserProfile]     // passed from SelectFriendsView
 
     @State private var startDate = Date()
     @State private var endDate = Calendar.current.date(byAdding: .day, value: 6, to: Date()) ?? Date()

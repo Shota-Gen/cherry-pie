@@ -8,6 +8,9 @@
 import SwiftUI
 import Auth
 
+/// Sign-in screen shown when no Supabase session exists.
+/// Presents a single "Connect to Google account" button that triggers
+/// the full Google OAuth flow via SupabaseManager.
 struct LoginView: View {
     @Environment(\.supabaseManager) var supabase
 

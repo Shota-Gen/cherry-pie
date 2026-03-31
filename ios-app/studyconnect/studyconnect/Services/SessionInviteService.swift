@@ -9,6 +9,8 @@ import Auth
 internal import PostgREST
 import Supabase
 
+/// Manages session invitations: fetching pending invites from Supabase and
+/// accepting/declining them via the backend REST API.
 class SessionInviteService {
 
     #if DEBUG && targetEnvironment(simulator)

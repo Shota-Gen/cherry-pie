@@ -3,12 +3,16 @@ import RealityKit
 import ARKit
 import UIKit
 
+/// Full-screen AR navigation experience.  Uses RealityKit + ARKit to
+/// display the camera feed with overlaid compass arrow, distance indicator,
+/// and target friend card.  The Coordinator runs a 30fps Timer to compute
+/// distance/bearing/heading from the AR camera transform.
 struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
-    let friend: UserProfile
-    @State private var distanceToTarget: Float = 5.0
-    @State private var bearingToTarget: Float = 0
-    @State private var deviceHeading: Float = 0
+    let friend: UserProfile                            // target friend to navigate to
+    @State private var distanceToTarget: Float = 5.0   // meters to target
+    @State private var bearingToTarget: Float = 0      // degrees from camera forward
+    @State private var deviceHeading: Float = 0        // compass heading
     @State private var isHeadingAvailable = false
 
     var body: some View {

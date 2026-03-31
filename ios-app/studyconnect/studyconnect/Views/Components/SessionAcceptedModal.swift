@@ -6,10 +6,13 @@
 
 import SwiftUI
 
+/// Confirmation popup shown after accepting a session invite.
+/// Displays a green checkmark, the inviter’s name, and the session time.
+/// Uses @Binding for isPresented so the parent (FriendsView) controls dismissal.
 struct SessionAcceptedModal: View {
-    @Binding var isPresented: Bool // Changed from Environment dismiss to Binding
-    let invitingUser: UserProfile
-    let sessionDate: Date
+    @Binding var isPresented: Bool  // parent controls visibility
+    let invitingUser: UserProfile   // who sent the invite
+    let sessionDate: Date           // session start time for display
 
     var body: some View {
         VStack(spacing: 20) {

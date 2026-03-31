@@ -7,10 +7,11 @@
 
 import Foundation
 
-// Drives all navigation within FriendsView's NavigationStack so the path can be
-// reset programmatically (e.g., "Back to Home" from FindAvailabilityView).
+/// Typed navigation enum for the Friends tab’s NavigationStack.
+/// Each case maps to a destination view in the session-scheduling flow.
+/// Using an enum allows `path = NavigationPath()` to pop to root.
 enum FriendsRoute: Hashable {
-    case selectFriends
-    case sessionDetails([UserProfile])
-    case findAvailability(SessionConfig)
+    case selectFriends                          // → SelectFriendsView
+    case sessionDetails([UserProfile])          // → SessionDetailsView
+    case findAvailability(SessionConfig)         // → FindAvailabilityView
 }

@@ -9,14 +9,19 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
+/// Friend selection screen before launching AR navigation.
+/// Lists nearby friends with radio-button selection, then checks camera
+/// permission before navigating to ARNavigationView.  Handles all three
+/// permission states: authorized, not-determined (requests access), denied
+/// (directs to Settings).
 struct ARNavigationSelectFriendView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
     @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
-    @State private var selectedFriendID: UUID? = nil
-    @State private var navigateToAR = false
+    @State private var selectedFriendID: UUID? = nil   // single-select radio
+    @State private var navigateToAR = false             // triggers NavigationLink
 
     @State private var showCameraPermissionAlert = false
     @State private var showCameraSettingsAlert = false
