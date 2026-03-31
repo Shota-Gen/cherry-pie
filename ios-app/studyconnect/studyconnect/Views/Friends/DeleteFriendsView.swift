@@ -19,13 +19,14 @@ import SwiftUI
 /// minus-circle selection indicators.  "Delete Selected" button removes
 /// mutual friendships (both directions) and dismisses the view.
 struct DeleteFriendsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var friends: [UserProfile] = []
-    @State private var service = FriendsService()
-    @State private var selectedFriendIDs: Set<UUID> = []
+    @Environment(\.dismiss) private var dismiss             // pops back to FriendsView
+    @State private var friends: [UserProfile] = []           // all friends, loaded on appear
+    @State private var service = FriendsService()            // handles delete API call
+    @State private var selectedFriendIDs: Set<UUID> = []     // multi-select: tracks which friends are marked for deletion
 
     var body: some View {
         VStack(spacing: 0) {
+            // ── Custom top bar: Cancel + title ──
             HStack {
                 Button {
                     dismiss()
@@ -42,7 +43,7 @@ struct DeleteFriendsView: View {
                 
                 Spacer()
                 
-                // Balance the Cancel button width
+                // Hidden duplicate of "Cancel" to center the title via HStack
                 Text("Cancel").font(.system(size: 16)).hidden()
             }
             .padding(.horizontal)
@@ -51,12 +52,16 @@ struct DeleteFriendsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(spacing: 12) {
+                            // Friends sorted by distance (closest first).
+                            // Each row is a DeleteFriendRowView with a red
+                            // minus-circle that fills when tapped/selected.
                             ForEach(friends.sorted {
                                 ($0.distanceMiles ?? .greatestFiniteMagnitude) <
                                 ($1.distanceMiles ?? .greatestFiniteMagnitude)
                             }) { friend in
                                 let isSelected = selectedFriendIDs.contains(friend.userId)
 
+                                // Tapping a row toggles its selection state
                                 Button {
                                     toggleSelection(for: friend.userId)
                                 } label: {
@@ -71,6 +76,9 @@ struct DeleteFriendsView: View {
                     }
                 }
 
+                // ── Delete button pinned at bottom ──
+                // Disabled (gray) when nothing is selected; red when ≥ 1 friend selected.
+                // Shows count in parentheses when friends are selected.
                 Button {
                     deleteSelectedFriends()
                 } label: {
@@ -92,14 +100,16 @@ struct DeleteFriendsView: View {
                 
             .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         }
-        .navigationBarHidden(true)
+        .navigationBarHidden(true) // using custom nav bar above
         .onAppear {
+            // Load the full friends list when the view appears
             Task {
                 friends = await service.getFriendsList()
             }
         }
     }
 
+    /// Toggles a friend's UUID in/out of the selectedFriendIDs set
     private func toggleSelection(for id: UUID) {
         if selectedFriendIDs.contains(id) {
             selectedFriendIDs.remove(id)
@@ -108,6 +118,8 @@ struct DeleteFriendsView: View {
         }
     }
 
+    /// Calls FriendsService.deleteFriends to remove mutual friendships
+    /// for all selected UUIDs, then dismisses back to the friends list.
     private func deleteSelectedFriends() {
         Task {
             await service.deleteFriends(ids: selectedFriendIDs)

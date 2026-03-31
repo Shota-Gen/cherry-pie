@@ -13,20 +13,23 @@ import UIKit
 /// ghost mode / push notification toggles, and sign-out.  Loads profile data
 /// from Supabase on appear.  Ghost mode toggle immediately syncs to backend.
 struct ProfileView: View {
-    @Environment(\.supabaseManager) var supabase
-    @State private var service = ProfileService()
-    @State private var profile = UserProfile.blank()        // fetched profile data
-    @State private var isGhostModeEnabled = true             // "hide location" toggle
-    @State private var isPushNotificationsEnabled = true
-    @State private var didCopyUID = false                    // clipboard feedback
-    @State private var isLoadingProfile = false
-    @State private var showingSignOutConfirmation = false
+    @Environment(\.supabaseManager) var supabase           // auth session for user ID and email
+    @State private var service = ProfileService()           // Supabase profile CRUD operations
+    @State private var profile = UserProfile.blank()        // loaded profile data from backend
+    @State private var isGhostModeEnabled = true             // "hide location" toggle synced to backend
+    @State private var isPushNotificationsEnabled = true     // push notification preference
+    @State private var didCopyUID = false                    // shows checkmark after UID is copied
+    @State private var isLoadingProfile = false              // prevents toggling while loading
+    @State private var showingSignOutConfirmation = false    // confirmation dialog before sign-out
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // ── Avatar + Name + UID section ──
                     VStack(spacing: 12) {
+                        // Profile picture — uses AvatarView which falls back to
+                        // colored initials circle when no image URL is set
                         AvatarView(name: displayName, imageURL: profile.profileImage, size: 108)
                             .shadow(color: Color.black.opacity(0.08), radius: 12, y: 6)
 
@@ -34,9 +37,12 @@ struct ProfileView: View {
                             .font(.title2)
                             .fontWeight(.semibold)
 
+                        // Tappable UID pill — copies the user's UUID to clipboard.
+                        // Shows a checkmark for 1.4 seconds after copying, then reverts.
                         Button {
                             UIPasteboard.general.string = userIDText
                             didCopyUID = true
+                            // Auto-reset the copied indicator after a short delay
                             Task {
                                 try? await Task.sleep(nanoseconds: 1_400_000_000)
                                 didCopyUID = false
@@ -46,6 +52,7 @@ struct ProfileView: View {
                                 Text("UID: \(userIDText)")
                                     .font(.caption)
                                     .fontWeight(.medium)
+                                // Toggle between clipboard icon and checkmark
                                 Image(systemName: didCopyUID ? "checkmark" : "doc.on.doc")
                                     .font(.caption.weight(.semibold))
                             }
@@ -60,6 +67,8 @@ struct ProfileView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, 12)
 
+                    // ── Focus time stat card ──
+                    // Hardcoded "45h" for now — will be replaced with real data
                     VStack(spacing: 8) {
                         Text("45h")
                             .font(.system(size: 34, weight: .bold))
@@ -67,7 +76,7 @@ struct ProfileView: View {
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
-                            .tracking(1)
+                            .tracking(1) // letter-spacing for the all-caps label
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
@@ -75,7 +84,9 @@ struct ProfileView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .shadow(color: Color.black.opacity(0.06), radius: 16, y: 8)
 
+                    // ── Settings rows section ──
                     VStack(spacing: 14) {
+                        // Edit Profile — pushes EditProfileView onto the nav stack
                         NavigationLink(destination: EditProfileView()) {
                             actionRow(
                                 title: "Edit Profile",
@@ -87,6 +98,7 @@ struct ProfileView: View {
                         }
                         .buttonStyle(.plain)
 
+                        // Change Password — placeholder action (not yet wired)
                         Button(action: {}) {
                             actionRow(
                                 title: "Change Password",
@@ -98,6 +110,10 @@ struct ProfileView: View {
                         }
                         .buttonStyle(.plain)
 
+                        // ── Ghost Mode toggle ──
+                        // When enabled, the user's location is hidden from friends.
+                        // onChange fires an async call to the backend to persist the
+                        // new value. On failure, reverts the toggle to its previous state.
                         HStack(spacing: 14) {
                             Image(systemName: "eye.slash.circle")
                                 .font(.system(size: 24, weight: .medium))
@@ -124,9 +140,11 @@ struct ProfileView: View {
                                     guard let userId = supabase.session?.user.id else { return }
                                     Task {
                                         do {
+                                            // Persist ghost mode preference to Supabase
                                             try await service.updateGhostMode(enabled: newValue, userId: userId)
                                             profile.isInvisible = newValue
                                         } catch {
+                                            // Revert toggle on failure so UI matches backend
                                             isGhostModeEnabled = profile.isInvisible
                                             print("Ghost mode update failed: \(error)")
                                         }
@@ -140,6 +158,7 @@ struct ProfileView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
 
+                        // ── Push Notifications toggle ──
                         HStack(spacing: 14) {
                             Image(systemName: "bell.circle")
                                 .font(.system(size: 24, weight: .medium))
@@ -172,7 +191,10 @@ struct ProfileView: View {
                         .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
                     }
 
-                    // Account actions
+                    // ── Sign Out button ──
+                    // Shows a confirmation dialog before actually signing out.
+                    // supabase.signOut() clears the Supabase session, which causes
+                    // ContentView to switch from TabView back to LoginView.
                     Button {
                         showingSignOutConfirmation = true
                     } label: {
@@ -195,7 +217,9 @@ struct ProfileView: View {
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
+            // .task runs the async loadProfile() when the view first appears
             .task { await loadProfile() }
+            // Destructive confirmation dialog before sign-out
             .confirmationDialog(
                 "Are you sure you want to sign out?",
                 isPresented: $showingSignOutConfirmation,
@@ -211,6 +235,7 @@ struct ProfileView: View {
         }
     }
 
+    // Falls back through: profile display name → email → "Loading..." / "Profile"
     private var displayName: String {
         let title = profile.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         if !title.isEmpty { return title }
@@ -218,6 +243,7 @@ struct ProfileView: View {
         return isLoadingProfile ? "Loading..." : "Profile"
     }
 
+    // Strips dashes from UUID for a cleaner display string
     private var userIDText: String {
         let uuid = supabase.session?.user.id ?? profile.userId
         let uuidString = uuid.uuidString.replacingOccurrences(of: "-", with: "")
@@ -228,6 +254,8 @@ struct ProfileView: View {
         Color(.systemBackground)
     }
 
+    // Reusable row builder for the settings section — icon + title + optional
+    // subtitle + optional chevron, all in a card-style container.
     private func actionRow(
         title: String,
         icon: String,
@@ -270,6 +298,9 @@ struct ProfileView: View {
         .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
     }
 
+    /// Loads the user's profile from Supabase on view appear.
+    /// Falls back to a blank profile if no session exists.
+    /// Synchronizes local toggle state (ghost mode) with the fetched data.
     private func loadProfile() async {
         guard let session = supabase.session else {
             profile = .blank()

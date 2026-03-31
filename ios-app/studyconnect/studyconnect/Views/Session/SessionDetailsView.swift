@@ -11,15 +11,17 @@ import SwiftUI
 /// Includes a custom date-range picker sheet with calendar grid and range highlighting.
 /// "Find Availability" button pushes FindAvailabilityView via FriendsRoute.
 struct SessionDetailsView: View {
-    var selectedFriends: [UserProfile]     // passed from SelectFriendsView
+    var selectedFriends: [UserProfile]     // friends chosen in Step 1 (SelectFriendsView)
 
-    @State private var startDate = Date()
-    @State private var endDate = Calendar.current.date(byAdding: .day, value: 6, to: Date()) ?? Date()
-    @State private var duration = 2
-    @State private var earliestStart = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()
-    @State private var latestEnd = Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date()
-    @State private var showDatePicker = false
+    // ── Session parameters (all @State — owned by this view) ──
+    @State private var startDate = Date()   // beginning of the date range to search for slots
+    @State private var endDate = Calendar.current.date(byAdding: .day, value: 6, to: Date()) ?? Date()  // default: 1 week window
+    @State private var duration = 2         // session length in hours (1–8)
+    @State private var earliestStart = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()  // "no earlier than" time
+    @State private var latestEnd = Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date()     // "no later than" time
+    @State private var showDatePicker = false  // controls the DateRangePickerSheet presentation
 
+    // Formats the selected date range as "Mon, Jan 1 – Sun, Jan 7" or just one day
     private var dateRangeLabel: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "EEE, MMM d"
@@ -29,7 +31,9 @@ struct SessionDetailsView: View {
         return "\(fmt.string(from: startDate)) – \(fmt.string(from: endDate))"
     }
 
-    /// Earliest valid value for latestEnd = earliestStart + chosen duration.
+    /// Earliest valid latestEnd = earliestStart + duration hours.
+    /// This prevents the user from setting an end time that makes
+    /// the window shorter than the requested session length.
     private var minLatestEnd: Date {
         Calendar.current.date(byAdding: .hour, value: duration, to: earliestStart) ?? earliestStart
     }
@@ -39,7 +43,9 @@ struct SessionDetailsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
 
-                    // DATE RANGE
+                    // ── DATE RANGE section ──
+                    // Tapping the row opens a custom calendar sheet (DateRangePickerSheet)
+                    // where the user picks start and end dates for availability search.
                     VStack(alignment: .leading, spacing: 8) {
                         sectionLabel("DATE RANGE")
 
@@ -67,7 +73,8 @@ struct SessionDetailsView: View {
                             .padding(.horizontal, 4)
                     }
 
-                    // SESSION DURATION
+                    // ── SESSION DURATION picker ──
+                    // Menu-style picker for 1–8 hours.
                     VStack(alignment: .leading, spacing: 8) {
                         sectionLabel("SESSION DURATION")
 
@@ -79,18 +86,22 @@ struct SessionDetailsView: View {
                                     Text("\(n) \(n == 1 ? "Hour" : "Hours")").tag(n)
                                 }
                             }
-                            .pickerStyle(.menu)
+                            .pickerStyle(.menu)  // compact dropdown on iOS
                         }
                         .padding()
                         .background(Color.white)
                         .cornerRadius(12)
                     }
 
-                    // TIME PREFERENCES
+                    // ── TIME PREFERENCES section ──
+                    // Two time pickers: earliest start (morning) and latest end (evening).
+                    // The latest-end picker is clamped so it can't be earlier than
+                    // earliestStart + duration (see minLatestEnd computed property).
                     VStack(alignment: .leading, spacing: 8) {
                         sectionLabel("TIME PREFERENCES")
 
                         VStack(spacing: 0) {
+                            // Earliest start time row
                             HStack(spacing: 14) {
                                 Image(systemName: "sun.max.fill")
                                     .font(.title2)
@@ -109,8 +120,9 @@ struct SessionDetailsView: View {
                             }
                             .padding()
 
-                            Divider().padding(.leading, 56)
+                            Divider().padding(.leading, 56)  // indent to align with text
 
+                            // Latest end time row — minimum is clamped to earliestStart + duration
                             HStack(spacing: 14) {
                                 Image(systemName: "moon.fill")
                                     .font(.title2)
@@ -133,11 +145,14 @@ struct SessionDetailsView: View {
                         .cornerRadius(12)
                     }
 
-                    Color.clear.frame(height: 80)
+                    Color.clear.frame(height: 80)  // bottom padding for scroll content
                 }
                 .padding()
             }
 
+            // ── "Find Availability" button pinned at bottom ──
+            // Bundles all session parameters into a SessionConfig struct
+            // and pushes FindAvailabilityView via FriendsRoute.
             NavigationLink(value: FriendsRoute.findAvailability(SessionConfig(
                 selectedFriends: selectedFriends,
                 startDate: startDate,
@@ -164,18 +179,21 @@ struct SessionDetailsView: View {
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationTitle("Session Details")
         .navigationBarTitleDisplayMode(.inline)
+        // Present the custom calendar date-range picker as a sheet
         .sheet(isPresented: $showDatePicker) {
             DateRangePickerSheet(startDate: $startDate, endDate: $endDate)
         }
-        // Clamp latestEnd whenever the minimum changes
+        // Auto-clamp latestEnd when earliestStart or duration changes
         .onChange(of: earliestStart) { clampLatestEnd() }
         .onChange(of: duration) { clampLatestEnd() }
     }
 
+    /// If latestEnd drifted below the minimum allowed value, snap it up.
     private func clampLatestEnd() {
         if latestEnd < minLatestEnd { latestEnd = minLatestEnd }
     }
 
+    /// Small all-caps section header used throughout the form.
     @ViewBuilder private func sectionLabel(_ text: String) -> some View {
         Text(text)
             .font(.caption.weight(.semibold))
@@ -184,7 +202,9 @@ struct SessionDetailsView: View {
 }
 
 // MARK: - Date Range Picker Sheet
-
+/// Custom calendar sheet for selecting a start–end date range.
+/// Uses a two-tap flow: first tap sets start, second tap sets end.
+/// Displays a visual range highlight (pill corridor) between start and end.
 private struct DateRangePickerSheet: View {
     @Binding var startDate: Date
     @Binding var endDate: Date
@@ -196,9 +216,10 @@ private struct DateRangePickerSheet: View {
     @State private var displayMonth: Date
 
     private let cal = Calendar.current
-    private let gridCols = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
+    private let gridCols = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)  // 7-column calendar grid
     private let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
+    // Initialize local copies of the dates so edits only commit on "Done"
     init(startDate: Binding<Date>, endDate: Binding<Date>) {
         _startDate = startDate
         _endDate = endDate
@@ -212,11 +233,13 @@ private struct DateRangePickerSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Title + Done
+            // ── Header: dynamic prompt + Done button ──
             HStack {
+                // Changes to "Select end date" after the first tap
                 Text(isSelectingEnd ? "Select end date" : "Select start date")
                     .font(.headline)
                 Spacer()
+                // Commits localStart/localEnd back to the parent bindings and dismisses
                 Button("Done") {
                     startDate = localStart
                     endDate = localEnd
@@ -227,7 +250,8 @@ private struct DateRangePickerSheet: View {
             }
             .padding()
 
-            // Month navigation
+            // ── Month navigation chevrons ──
+            // Left chevron disabled when already on the current month (can't go to past)
             HStack {
                 Button { shiftMonth(-1) } label: {
                     Image(systemName: "chevron.left")
@@ -249,7 +273,7 @@ private struct DateRangePickerSheet: View {
             }
             .padding(.horizontal, 4)
 
-            // Weekday header
+            // ── Sun–Sat weekday header row ──
             HStack(spacing: 0) {
                 ForEach(weekdays, id: \.self) { wd in
                     Text(wd)
@@ -261,7 +285,9 @@ private struct DateRangePickerSheet: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 8)
 
-            // Day grid
+            // ── Calendar day grid ──
+            // gridDays() returns [Date?] where nil = empty cell before day 1.
+            // Each non-nil cell is a RangeDayCell that handles tap + range highlighting.
             LazyVGrid(columns: gridCols, spacing: 0) {
                 ForEach(Array(gridDays().enumerated()), id: \.offset) { _, day in
                     if let day = day {
@@ -277,19 +303,25 @@ private struct DateRangePickerSheet: View {
 
             Spacer(minLength: 20)
         }
+        // .presentationDetents allows the sheet to sit at medium or expand to large
         .presentationDetents([.medium, .large])
     }
 
+    /// Formatted month label for the navigation header (e.g. "March 2026")
     private var monthLabel: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "MMMM yyyy"
         return fmt.string(from: displayMonth)
     }
 
+    /// True when displayMonth is the current calendar month (disables back chevron)
     private var isOnCurrentMonth: Bool {
         cal.isDate(displayMonth, equalTo: Date(), toGranularity: .month)
     }
 
+    /// Two-tap date selection logic:
+    /// 1st tap → sets start date, enters "selecting end" mode
+    /// 2nd tap → if before start, restarts; otherwise sets end date
     private func handleTap(_ date: Date) {
         let day = cal.startOfDay(for: date)
         guard day >= cal.startOfDay(for: Date()) else { return }
@@ -311,12 +343,15 @@ private struct DateRangePickerSheet: View {
         }
     }
 
+    /// Shifts the displayed month forward or backward by `delta` months
     private func shiftMonth(_ delta: Int) {
         if let m = cal.date(byAdding: .month, value: delta, to: displayMonth) {
             displayMonth = m
         }
     }
 
+    /// Builds the array of optional dates for the current month's grid.
+    /// Leading nil entries represent empty cells before the 1st falls on its weekday.
     private func gridDays() -> [Date?] {
         guard
             let first = cal.date(from: cal.dateComponents([.year, .month], from: displayMonth)),
@@ -332,7 +367,11 @@ private struct DateRangePickerSheet: View {
 }
 
 // MARK: - Range Day Cell
-
+/// Individual day cell in the calendar grid. Handles:
+/// - Blue filled circle for start/end dates
+/// - Light blue corridor background for days in the selected range
+/// - Gray text for past dates (non-tappable)
+/// - Half-corridor on start (right half) and end (left half) for the pill effect
 private struct RangeDayCell: View {
     let date: Date
     let start: Date
@@ -341,11 +380,12 @@ private struct RangeDayCell: View {
     let onTap: () -> Void
 
     private let cal = Calendar.current
-    private var dayNum: Int { cal.component(.day, from: date) }
-    private var isPast: Bool { cal.startOfDay(for: date) < today }
-    private var isStart: Bool { cal.isDate(date, inSameDayAs: start) }
-    private var isEnd: Bool { cal.isDate(date, inSameDayAs: end) }
-    private var isSingle: Bool { cal.isDate(start, inSameDayAs: end) }
+    private var dayNum: Int { cal.component(.day, from: date) }  // day-of-month number
+    private var isPast: Bool { cal.startOfDay(for: date) < today }  // true for dates before today
+    private var isStart: Bool { cal.isDate(date, inSameDayAs: start) }  // is this the range start?
+    private var isEnd: Bool { cal.isDate(date, inSameDayAs: end) }      // is this the range end?
+    private var isSingle: Bool { cal.isDate(start, inSameDayAs: end) }  // start == end (single day)
+    // True for days strictly between start and end (not including endpoints)
     private var isInRange: Bool {
         guard !isSingle else { return false }
         let d = cal.startOfDay(for: date)
@@ -354,27 +394,35 @@ private struct RangeDayCell: View {
 
     var body: some View {
         Text("\(dayNum)")
+            // Bold for range endpoints, regular for other days
             .font(.system(size: 16, weight: (isStart || isEnd) ? .semibold : .regular))
+            // Gray for past, white for endpoints (they sit on blue circle), default otherwise
             .foregroundColor(
                 isPast ? Color(.systemGray4)
                 : (isStart || isEnd) ? .white
                 : .primary
             )
             .frame(width: 36, height: 36)
+            // Blue filled circle behind start/end day numbers
             .background((isStart || isEnd) && !isPast ? Color.blue : Color.clear)
             .clipShape(Circle())
             .background {
-                // Range corridor background (pill effect)
+                // Range corridor background creates the "pill" effect between start and end.
+                // For in-range days: full-width light blue.
+                // For start day: only the right half is colored (connects to the range).
+                // For end day: only the left half is colored.
                 if isInRange {
                     Color.blue.opacity(0.12)
                         .frame(maxWidth: .infinity, maxHeight: 36)
                 } else if isStart && !isSingle {
+                    // Right half colored: clear | blue corridor
                     HStack(spacing: 0) {
                         Color.clear.frame(maxWidth: .infinity)
                         Color.blue.opacity(0.12).frame(maxWidth: .infinity)
                     }
                     .frame(maxHeight: 36)
                 } else if isEnd && !isSingle {
+                    // Left half colored: blue corridor | clear
                     HStack(spacing: 0) {
                         Color.blue.opacity(0.12).frame(maxWidth: .infinity)
                         Color.clear.frame(maxWidth: .infinity)
@@ -383,7 +431,7 @@ private struct RangeDayCell: View {
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
-            .contentShape(Rectangle())
+            .contentShape(Rectangle())  // expand tap target to full cell
             .onTapGesture(perform: onTap)
     }
 }

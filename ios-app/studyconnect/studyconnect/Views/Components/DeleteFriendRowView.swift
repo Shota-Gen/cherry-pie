@@ -13,15 +13,18 @@ struct DeleteFriendRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // Avatar with initials fallback (shared component)
             AvatarView(name: friend.displayTitle, imageURL: friend.profileImage)
                 .frame(width: 50)
 
             VStack(alignment: .leading, spacing: 4) {
+                // Friend's display name
                 Text(friend.displayTitle)
                     .font(.body)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
 
+                // Study spot or fallback text
                 Text(friend.studySpot.isEmpty ? "Not Found" : friend.studySpot)
                     .font(.caption)
                     .foregroundColor(.gray)
@@ -29,6 +32,7 @@ struct DeleteFriendRowView: View {
 
             Spacer()
 
+            // Distance in miles (omitted if nil)
             if let dist = friend.distanceMiles {
                 Text(String(format: "%.1f mi", dist))
                     .font(.caption)
@@ -36,17 +40,23 @@ struct DeleteFriendRowView: View {
                     .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
             }
 
+            // Red minus-circle toggle:
+            // • Unselected: red outline circle with a red minus icon
+            // • Selected: filled red circle with white minus icon
+            // Parent view toggles isSelected in a Set<UUID>.
             Circle()
                 .stroke(Color.red, lineWidth: 1.5)
                 .frame(width: 24, height: 24)
                 .overlay {
                     if isSelected {
+                        // Filled state — solid red with white minus
                         Circle()
                             .fill(Color.red)
                         Image(systemName: "minus")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.white)
                     } else {
+                        // Outline-only state — red minus on transparent background
                         Image(systemName: "minus")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.red)
