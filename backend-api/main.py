@@ -42,5 +42,4 @@ async def health():
 
 # -- Routers --
 app.include_router(studyspots_router)
-app.include_router(users_router)
 app.include_router(sessions_router)
