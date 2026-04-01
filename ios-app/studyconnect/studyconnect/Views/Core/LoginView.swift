@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import UIKit
 import Auth
 
 struct LoginView: View {
     @Environment(\.supabaseManager) var supabase
+    @State private var presentingVC: UIViewController? = nil
 
     var body: some View {
         VStack(spacing: 18) {
@@ -43,7 +45,9 @@ struct LoginView: View {
             } else {
                 Button {
                     Task {
-                        await supabase.signInWithGoogle()
+                        if let vc = presentingVC {
+                            await supabase.signInWithGoogle(presenting: vc)
+                        }
                     }
                 } label: {
                     HStack(spacing: 14) {
@@ -92,9 +96,39 @@ struct LoginView: View {
             )
             .ignoresSafeArea()
         }
+        .background(ControllerResolver { vc in
+            presentingVC = vc
+        })
     }
 }
 
 #Preview {
     ContentView()
 }
+private struct ControllerResolver: UIViewControllerRepresentable {
+    let onResolve: (UIViewController) -> Void
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        ResolverViewController(onResolve: onResolve)
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+
+    private final class ResolverViewController: UIViewController {
+        let onResolve: (UIViewController) -> Void
+
+        init(onResolve: @escaping (UIViewController) -> Void) {
+            self.onResolve = onResolve
+            super.init(nibName: nil, bundle: nil)
+            view.isHidden = true
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            onResolve(self)
+        }
+    }
+}
+
