@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     database_url: str = ""
     environment: str = "development"
 
+    # Google OAuth (for Calendar integration)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+
+    # Gemini LLM
+    gemini_api_key: str = ""
+
 
 settings = Settings()
 

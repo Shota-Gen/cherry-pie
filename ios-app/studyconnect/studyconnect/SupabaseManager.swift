@@ -50,11 +50,14 @@ class SupabaseManager {
             let rawNonce = String.randomNonce()
             let hashedNonce = sha256(rawNonce)
 
+            // Request the calendar.freebusy scope for Smart Scheduler
+            let calendarScope = "https://www.googleapis.com/auth/calendar.freebusy"
+
             // Present Google Sign-In (API runs on main actor)
             let gidResult = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: presentingVC,
                 hint: nil,
-                additionalScopes: nil,
+                additionalScopes: [calendarScope],
                 nonce: hashedNonce
             )
 
@@ -77,8 +80,35 @@ class SupabaseManager {
             let nameHint = gidResult.user.profile?.name
             await ensureUserRowExists(displayNameHint: nameHint)
 
+            // 4. Store Google tokens for Smart Scheduler (calendar access)
+            let googleEmail = gidResult.user.profile?.email ?? session.user.email ?? ""
+            let refreshToken = gidResult.user.refreshToken.tokenString
+            await storeGoogleCalendarToken(
+                userId: session.user.id,
+                refreshToken: refreshToken,
+                accessToken: accessToken,
+                googleEmail: googleEmail
+            )
+
         } catch {
             print("❌ Login failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Store the Google OAuth tokens on the backend for offline FreeBusy access.
+    private func storeGoogleCalendarToken(userId: UUID, refreshToken: String, accessToken: String, googleEmail: String) async {
+        do {
+            let service = SessionService()
+            try await service.storeGoogleToken(
+                userId: userId,
+                refreshToken: refreshToken,
+                accessToken: accessToken,
+                googleEmail: googleEmail
+            )
+            print("✅ Google Calendar token stored for Smart Scheduler")
+        } catch {
+            // Non-critical — Smart Scheduler will still work with fallback
+            print("⚠️ Could not store Google Calendar token: \(error.localizedDescription)")
         }
     }
 

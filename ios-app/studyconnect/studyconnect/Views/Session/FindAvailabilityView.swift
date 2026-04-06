@@ -3,6 +3,7 @@
 //  studyconnect
 //
 //  Created by Jawad using Copilot on 3/6/26.
+//  Updated: Smart Scheduler integration (async API + loading/error states)
 //
 
 import SwiftUI
@@ -17,6 +18,9 @@ struct FindAvailabilityView: View {
     @State private var slots: [TimeSlot] = []
     @State private var selectedSlot: TimeSlot? = nil
     @State private var sessionSent = false
+    @State private var isLoading = true
+    @State private var errorMessage: String? = nil
+    @State private var usedLLM = false
 
     // Group slots by calendar day, sorted chronologically
     private var slotsByDay: [(day: Date, slots: [TimeSlot])] {
@@ -57,17 +61,87 @@ struct FindAvailabilityView: View {
                     .background(Color.white)
                     .cornerRadius(16)
 
-                    // ── Slot list ──────────────────────────────────────
-                    if slots.isEmpty {
+                    // ── Smart Scheduler badge ───────────────────────
+                    if !isLoading && !slots.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: usedLLM ? "brain.fill" : "clock.fill")
+                                .font(.caption)
+                                .foregroundColor(usedLLM ? .purple : .orange)
+                            Text(usedLLM ? "AI-Powered Suggestions" : "Quick Suggestions")
+                                .font(.caption.weight(.medium))
+                                .foregroundColor(usedLLM ? .purple : .orange)
+                            Spacer()
+                            if !usedLLM {
+                                Text("Calendar not linked")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(usedLLM
+                                      ? Color.purple.opacity(0.08)
+                                      : Color.orange.opacity(0.08))
+                        )
+                    }
+
+                    // ── Slot list / loading / error ───────────────────
+                    if isLoading {
                         HStack {
                             Spacer()
                             VStack(spacing: 12) {
                                 ProgressView()
-                                Text("Finding slots…")
-                                    .font(.subheadline)
+                                    .scaleEffect(1.2)
+                                Text("Analyzing calendars…")
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundColor(.secondary)
+                                Text("Checking availability for \(config.selectedFriends.count) friend\(config.selectedFriends.count == 1 ? "" : "s")")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
+                        }
+                        .padding(.top, 40)
+                    } else if let error = errorMessage {
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.orange)
+                            Text("Couldn't find times")
+                                .font(.headline)
+                            Text(error)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Try Again") {
+                                Task { await fetchSlots() }
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.blue)
+                            .padding(.top, 4)
+                            Button("Use Offline Mode") {
+                                slots = service.getSuggestedSlotsLocal(config: config)
+                                errorMessage = nil
+                                usedLLM = false
+                            }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 40)
+                        .padding(.horizontal)
+                    } else if slots.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "calendar.badge.exclamationmark")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary)
+                            Text("No Slots Found")
+                                .font(.headline)
+                            Text("Try expanding your date range or time window")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
                         }
                         .padding(.top, 40)
                     } else {
@@ -83,6 +157,7 @@ struct FindAvailabilityView: View {
 
                     Color.clear.frame(height: 80)
                 }
+                .padding()
 
                 // ── Send bar ───────────────────────────────────────────────
                 HStack {
@@ -146,15 +221,41 @@ struct FindAvailabilityView: View {
         .animation(.easeInOut(duration: 0.25), value: sessionSent)
         .navigationTitle("Find Availability")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            slots = service.getSuggestedSlots(config: config)
+        .task {
+            await fetchSlots()
+        }
+    }
+
+    // MARK: - Fetch Slots (Smart Scheduler)
+
+    private func fetchSlots() async {
+        isLoading = true
+        errorMessage = nil
+
+        guard let userId = supabase.session?.user.id else {
+            // No auth — fall back to local
+            slots = service.getSuggestedSlotsLocal(config: config)
+            isLoading = false
+            return
+        }
+
+        do {
+            let result = try await service.getSuggestedSlots(config: config, hostId: userId)
+            slots = result
+            usedLLM = true
+            isLoading = false
+        } catch {
+            print("⚠️ Smart Scheduler failed, trying local fallback: \(error.localizedDescription)")
+            // Fallback to local stub scheduling
+            slots = service.getSuggestedSlotsLocal(config: config)
+            usedLLM = false
+            isLoading = false
         }
     }
 
     // MARK: - Subviews
 
     private var stackedAvatars: some View {
-        // Negative spacing creates ~30% overlap: size 36, spacing -11 → 11/36 ≈ 30%
         HStack(spacing: -11) {
             ForEach(Array(config.selectedFriends.prefix(5))) { friend in
                 AvatarView(name: friend.displayTitle, imageURL: friend.profileImage, size: 36)
