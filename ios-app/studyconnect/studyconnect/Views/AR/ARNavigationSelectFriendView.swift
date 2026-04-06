@@ -117,7 +117,18 @@ struct ARNavigationSelectFriendView: View {
         .onAppear {
             if friends.isEmpty {
                 Task {
-                    friends = await service.getSuggestedFriends()
+                    var fetched = await service.getSuggestedFriends()
+                    // Prepend hardcoded test user until UWB integration is ready
+                    let testUser = UserProfile(
+                        userId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+                        displayName: "Test Friend",
+                        email: "friend@example.com",
+                        profileImage: ""
+                    )
+                    if !fetched.contains(where: { $0.userId == testUser.userId }) {
+                        fetched.insert(testUser, at: 0)
+                    }
+                    friends = fetched
                 }
             }
         }
