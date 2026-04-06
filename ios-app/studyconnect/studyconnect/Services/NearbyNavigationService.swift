@@ -130,15 +130,15 @@ class NearbyNavigationService: NSObject {
     }
     
     func invitePeer(peer: UUID) {
-//        if peerToPeerStatus != PeerToPeerStatus.Searching {
-//            return
-//        }
-//        
-//        for (userPeerId, userProf) in foundUsers {
-//            if userProf.userId.uuidString == peer.uuidString {
-//                mcBrowser.invitePeer(userPeerId, to: mcSession, withContext: nil, timeout: 10)
-//            }
-//        }
+        if peerToPeerStatus != PeerToPeerStatus.Searching {
+            return
+        }
+        
+        for (userPeerId, userProf) in foundUsers {
+            if userProf.userId.uuidString == peer.uuidString {
+                mcBrowser.invitePeer(userPeerId, to: mcSession, withContext: nil, timeout: 10)
+            }
+        }
     }
 
     func deactivate() {
