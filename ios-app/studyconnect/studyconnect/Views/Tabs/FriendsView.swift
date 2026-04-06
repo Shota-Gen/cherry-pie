@@ -59,47 +59,21 @@ struct FriendsView: View {
 
                             VStack(spacing: 12) {
                                 ForEach(incomingRequests) { request in
-                                    // If current user is the receiver and request is pending, show Accept/Decline
-                                    if let myId = currentUserId, request.toUser.userId == myId && request.status == .pending {
-                                        FriendRequestRowView(
-                                            request: request,
-                                            onAccept: {
-                                                Task {
-                                                    await friendRequestService.acceptRequest(requestId: request.id)
-                                                    incomingRequests.removeAll { $0.id == request.id }
-                                                }
-                                            },
-                                            onDecline: {
-                                                Task {
-                                                    await friendRequestService.rejectRequest(requestId: request.id)
-                                                    incomingRequests.removeAll { $0.id == request.id }
-                                                }
+                                    FriendRequestRowView(
+                                        request: request,
+                                        onAccept: {
+                                            Task {
+                                                await friendRequestService.acceptRequest(fromUserId: request.userId)
+                                                incomingRequests.removeAll { $0.id == request.id }
                                             }
-                                        )
-                                    } else if let myId = currentUserId, request.fromUser.userId == myId {
-                                        // If current user is the sender, show status (pending/accepted/rejected)
-                                        HStack {
-                                            AvatarView(name: request.toUser.displayTitle, imageURL: request.toUser.profileImage, size: 44)
-                                                .frame(width: 44, height: 44)
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(request.toUser.displayTitle)
-                                                    .font(.body)
-                                                    .fontWeight(.semibold)
-                                                    .foregroundColor(.primary)
-                                                Text("Friend request status: \(request.status.rawValue.capitalized)")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
+                                        },
+                                        onDecline: {
+                                            Task {
+                                                await friendRequestService.rejectRequest(fromUserId: request.userId)
+                                                incomingRequests.removeAll { $0.id == request.id }
                                             }
-                                            Spacer()
-                                            Text(request.createdTimeAgo)
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
                                         }
-                                        .padding()
-                                        .background(Color.white)
-                                        .cornerRadius(10)
-                                        .shadow(color: Color.black.opacity(0.03), radius: 2, x: 0, y: 1)
-                                    }
+                                    )
                                 }
                             }
                             .padding(.horizontal)
@@ -184,28 +158,11 @@ struct FriendsView: View {
             .blur(radius: showAcceptedModal ? 10 : 0)
             .allowsHitTesting(!showAcceptedModal)
             .onAppear {
-                // --- TEST PROTOTYPE: Hardcoded incoming friend request for UI preview ---
-                let myId = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
-                let senderId = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
-                let me = UserProfile(userId: myId, displayName: "Test User (You)", email: "me@umich.edu")
-                let sender = UserProfile(userId: senderId, displayName: "Jane Doe", email: "jane@umich.edu")
-                currentUserId = myId
-                incomingRequests = [
-                    FriendRequest(
-                        id: UUID(),
-                        fromUser: sender,
-                        toUser: me,
-                        createdAt: Date(timeIntervalSinceNow: -300),
-                        status: .pending
-                    )
-                ]
-                // --- END TEST PROTOTYPE ---
+                currentUserId = SupabaseManager.shared.session?.user.id
                 Task {
                     friends = await service.getFriendsList()
                     pendingInvites = await inviteService.getPendingInvites()
-                    // Uncomment below to use real backend:
-                    // currentUserId = SupabaseManager.shared.session?.user.id
-                    // incomingRequests = await friendRequestService.getIncomingRequests()
+                    incomingRequests = await friendRequestService.getIncomingRequests()
                 }
             }
             .navigationDestination(for: FriendsRoute.self) { route in

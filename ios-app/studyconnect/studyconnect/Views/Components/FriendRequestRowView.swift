@@ -15,10 +15,10 @@ struct FriendRequestRowView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Top row: sender avatar, name, subtitle, and relative timestamp
             HStack(spacing: 12) {
-                AvatarView(name: request.fromUser.displayTitle, imageURL: request.fromUser.profileImage, size: 44)
+                AvatarView(name: request.fromUser?.displayTitle ?? "Unknown", imageURL: request.fromUser?.profileImage ?? "", size: 44)
                     .frame(width: 44, height: 44)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(request.fromUser.displayTitle)
+                    Text(request.fromUser?.displayTitle ?? "Unknown")
                         .font(.body)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
