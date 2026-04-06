@@ -18,8 +18,8 @@ struct ARNavigationView: View {
             Color.black
                 .ignoresSafeArea(edges: .all)
 
-//            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable, nearbyNavigation: $nearbyNavigation)
-//                .ignoresSafeArea(edges: .all)
+            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable, nearbyNavigation: $nearbyNavigation)
+                .ignoresSafeArea(edges: .all)
 
             // Direction arrow - points to target
             compassArrow(bearing: bearingToTarget, heading: deviceHeading)
@@ -174,7 +174,6 @@ private struct ARViewContainer: UIViewRepresentable {
     @Binding var deviceHeading: Float
     @Binding var isHeadingAvailable: Bool
     @Binding var nearbyNavigation: NearbyNavigationService!
-    //@Binding var arView: ARView
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -190,7 +189,7 @@ private struct ARViewContainer: UIViewRepresentable {
         
 //         Set up location tracking through periodic updates
         let coordinator = context.coordinator
-        coordinator.trackingUpdates(nearbyNavigation: nearbyNavigation, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
+        coordinator.trackingUpdates(nearbyNavigation: nearbyNavigation, view: nearbyNavigation.arview, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
         
         return nearbyNavigation.arview
     }
@@ -200,12 +199,13 @@ private struct ARViewContainer: UIViewRepresentable {
     class Coordinator {
         private var timer: Timer?
         
-        func trackingUpdates(nearbyNavigation: NearbyNavigationService, distanceBinding: Binding<Float>, bearingBinding: Binding<Float>, headingBinding: Binding<Float>, isHeadingAvailableBinding: Binding<Bool>) {
+        func trackingUpdates(nearbyNavigation: NearbyNavigationService, view: ARView, distanceBinding: Binding<Float>, bearingBinding: Binding<Float>, headingBinding: Binding<Float>, isHeadingAvailableBinding: Binding<Bool>) {
             // Target position in world space
-            let targetWorldPosition = SIMD3<Float>(2.0, 0.0, -4.5)
+//            let targetWorldPosition: SIMD3<Float> = nearbyNavigation.target
             
             timer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { _ in
-                guard let frame = nearbyNavigation.arview.session.currentFrame else { return }
+                guard let frame = view.session.currentFrame else { return }
+                let targetWorldPosition: SIMD3<Float> = nearbyNavigation.target
                 
                 let cameraTransform = frame.camera.transform
                 let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)

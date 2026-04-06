@@ -58,7 +58,7 @@ class NearbyNavigationService: NSObject {
     private(set) var targetDistance: Float = 0.0
     var target: SIMD3<Float> {
         get {
-            return targetSum / targetMeasurementCount
+            return targetMeasurementCount > 0 ? targetSum / targetMeasurementCount : SIMD3<Float>(0.0, 0.0, 0.0)
         }
     }
     
@@ -243,7 +243,7 @@ class NearbyNavigationService: NSObject {
     }
     
     private func accumulateDatapoints(position: SIMD3<Float>, distance: Float) {
-        print(distance)
+        print(positionCollected.count)
         // keep number of points strictly <= 5, lazy approach
         // a better clustering algorithm or sampling might be
         // better, but will be really hard and time consuming
@@ -257,7 +257,6 @@ class NearbyNavigationService: NSObject {
         // math will be more sensitive to noise
         // the first point doesn't really matter since it is there
         // to make the algebra cleaner
-        print(position)
         for point in positionCollected.dropFirst() {
             if simd_length(position - point) < MINIMUM_MEASUREMENT_DISTANCE {
                 return
@@ -271,6 +270,8 @@ class NearbyNavigationService: NSObject {
             let ab = simd_normalize(position - positionCollected[1])
             let ac = simd_normalize(position - positionCollected[2])
             let abs_dot_prod = abs(simd_dot(ab, ac))
+            print("three")
+            print(abs_dot_prod)
             if abs_dot_prod > (1.0 - DATAPOINT_ANGLE_THRESHOLD) {
                 print(abs_dot_prod)
                 return
@@ -282,6 +283,8 @@ class NearbyNavigationService: NSObject {
             let ad = simd_normalize(position - positionCollected[1])
             let ref = simd_cross(ab, ac)
             let abs_dot_prod = abs(simd_dot(ref, ad))
+            print("four")
+            print(abs_dot_prod)
             if abs_dot_prod < DATAPOINT_ANGLE_THRESHOLD {
                 print(abs_dot_prod)
                 return
@@ -330,7 +333,6 @@ class NearbyNavigationService: NSObject {
 
 extension NearbyNavigationService: NISessionDelegate {
     func session(_ session: NISession, didUpdate nearbyObjects: [NINearbyObject]) {
-        print("streaming data")
         // retrieve the distance
         guard let niObject = nearbyObjects.first else { return }
         let distance: Float! = niObject.distance ?? 0.0
@@ -450,7 +452,7 @@ extension NearbyNavigationService: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         // the user is no longer searchable, remove them
         print("user disconnected")
-        foundUsers.removeValue(forKey: peerID)
+//        foundUsers.removeValue(forKey: peerID)
     }
     
     func browser(_ browser: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: any Error) {

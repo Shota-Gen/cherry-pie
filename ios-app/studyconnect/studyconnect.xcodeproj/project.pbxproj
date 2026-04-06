@@ -383,6 +383,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -440,6 +441,7 @@
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -456,11 +458,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = studyconnect/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is needed";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local network usage is needed";
+				INFOPLIST_KEY_NSCameraUsageDescription = "camera is needed";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "local network is needed";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "The app uses your location to show you on the app and find friends.";
-				INFOPLIST_KEY_NSMotionUsageDescription = "Motion usage is needed";
-				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "Nearby interaction is needed";
+				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "nearby interaction is needed";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -471,7 +472,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = edu.umich.asdfjeff.studyconnect;
+				PRODUCT_BUNDLE_IDENTIFIER = umich.edu.asdfjeff.StudyConnect;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -496,11 +497,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = studyconnect/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is needed";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local network usage is needed";
+				INFOPLIST_KEY_NSCameraUsageDescription = "camera is needed";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "local network is needed";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "The app uses your location to show you on the app and find friends.";
-				INFOPLIST_KEY_NSMotionUsageDescription = "Motion usage is needed";
-				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "Nearby interaction is needed";
+				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "nearby interaction is needed";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -511,7 +511,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = edu.umich.asdfjeff.studyconnect;
+				PRODUCT_BUNDLE_IDENTIFIER = umich.edu.asdfjeff.StudyConnect;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

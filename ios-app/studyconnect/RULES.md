@@ -1,7 +1,7 @@
 Swift / SwiftUI Project Rules
 
 Target modern Swift and SwiftUI conventions.
-Assume Swift 5.9+ minimum, and prefer Swift 6.2-compatible patterns when possible.
+ONLY USE Swift 6+ minimum, and prefer Swift 6.2-compatible patterns when possible.
 
 Core rule
 Do not use older SwiftUI state-management/property-wrapper patterns when the Observation package can replace them.

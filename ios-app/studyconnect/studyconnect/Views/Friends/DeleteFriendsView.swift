@@ -23,27 +23,27 @@ struct DeleteFriendsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
+            HStack {
                 Button {
                     dismiss()
                 } label: {
                     Text("Cancel")
                         .font(.system(size: 16, weight: .regular))
                         .foregroundColor(.blue)
-                        .frame(minWidth: 60)
                 }
                 
                 Spacer()
                 
-                Text("Friends")
-                    .font(.system(size: 20, weight: .semibold))
+                Text("Delete Friends")
+                    .font(.system(size: 17, weight: .semibold))
                 
                 Spacer()
                 
-                Color.clear.frame(minWidth: 60)
+                // Balance the Cancel button width
+                Text("Cancel").font(.system(size: 16)).hidden()
             }
-            .padding()
-            .background(Color.white)
+            .padding(.horizontal)
+            .padding(.vertical, 10)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {

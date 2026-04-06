@@ -16,25 +16,39 @@ class FriendsService {
     func getFriendsList() async -> [UserProfile] {
         guard let userId = SupabaseManager.shared.session?.user.id else { return [] }
         let client = SupabaseManager.shared.client
+        let myId = userId.uuidString.lowercased()
         
         do {
-            // 1. Get friend IDs from the friends table
-            let result = try await client
+            // 1a. Rows where I'm user_id (I sent the request, both accepted)
+            let sentResult = try await client
                 .from("friends")
                 .select()
-                .eq("user_id", value: userId.uuidString.lowercased())
+                .eq("user_id", value: myId)
+                .eq("user_status", value: "accepted")
+                .eq("friend_status", value: "accepted")
                 .execute()
-                
-            let friendRows = (try? JSONSerialization.jsonObject(with: result.data) as? [[String: Any]]) ?? []
-            let friendIds = friendRows.compactMap { $0["friend_id"] as? String }
-            
-            guard !friendIds.isEmpty else { return [] }
+            let sentRows = (try? JSONSerialization.jsonObject(with: sentResult.data) as? [[String: Any]]) ?? []
+            let sentFriendIds = sentRows.compactMap { $0["friend_id"] as? String }
+
+            // 1b. Rows where I'm friend_id (I received the request, both accepted)
+            let recvResult = try await client
+                .from("friends")
+                .select()
+                .eq("friend_id", value: myId)
+                .eq("user_status", value: "accepted")
+                .eq("friend_status", value: "accepted")
+                .execute()
+            let recvRows = (try? JSONSerialization.jsonObject(with: recvResult.data) as? [[String: Any]]) ?? []
+            let recvFriendIds = recvRows.compactMap { $0["user_id"] as? String }
+
+            let allFriendIds = Array(Set(sentFriendIds + recvFriendIds))
+            guard !allFriendIds.isEmpty else { return [] }
             
             // 2. Fetch friend profiles from the users table
             let usersResult = try await client
                 .from("users")
                 .select()
-                .in("user_id", values: friendIds)
+                .in("user_id", values: allFriendIds)
                 .execute()
                 
             let userRows = (try? JSONSerialization.jsonObject(with: usersResult.data) as? [[String: Any]]) ?? []
@@ -53,42 +67,55 @@ class FriendsService {
         }
     }
 
-    // Add a friend by ID
+    // Add a friend by sending a friend request
     func addFriend(id: String) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         let client = SupabaseManager.shared.client
+        let myId = userId.uuidString.lowercased()
+        let friendId = id.lowercased()
         
         do {
+            // Insert a friend request: sender is auto-accepted, receiver is pending
             try await client
                 .from("friends")
-                .insert([
-                    "user_id": userId.uuidString.lowercased(),
-                    "friend_id": id.lowercased() // Assuming input id is also a UUID string
+                .upsert([
+                    ["user_id": myId, "friend_id": friendId,
+                     "user_status": "accepted", "friend_status": "pending"]
                 ])
                 .execute()
-            print("✅ Friend added: \(id)")
+            print("✅ Friend request sent to: \(id)")
         } catch {
             print("❌ Failed to add friend: \(error.localizedDescription)")
         }
     }
 
-    // Delete a friend
+    // Delete a friend (removes the friendship row regardless of direction)
     func deleteFriends(ids: Set<UUID>) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         guard !ids.isEmpty else { return }
         
         let client = SupabaseManager.shared.client
+        let myId = userId.uuidString.lowercased()
         let friendIdsGroup = ids.map { $0.uuidString.lowercased() }
         
         do {
+            // Delete rows where I'm user_id and they're friend_id
             try await client
                 .from("friends")
                 .delete()
-                .eq("user_id", value: userId.uuidString.lowercased())
+                .eq("user_id", value: myId)
                 .in("friend_id", values: friendIdsGroup)
                 .execute()
+            
+            // Delete rows where they're user_id and I'm friend_id
+            try await client
+                .from("friends")
+                .delete()
+                .in("user_id", values: friendIdsGroup)
+                .eq("friend_id", value: myId)
+                .execute()
                 
-            print("✅ Deleted friends with IDs: \(friendIdsGroup)")
+            print("✅ Deleted friendships with IDs: \(friendIdsGroup)")
         } catch {
             print("❌ Failed to delete friends: \(error.localizedDescription)")
         }

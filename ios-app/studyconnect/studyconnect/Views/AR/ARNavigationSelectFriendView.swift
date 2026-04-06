@@ -28,19 +28,12 @@ struct ARNavigationSelectFriendView: View {
     @Binding var nearbyNavigation: NearbyNavigationService?
 
     var body: some View {
-        // ZStack required for layering gray background with white header and scrollable content
-        ZStack {
-            Color(red: 0.95, green: 0.95, blue: 0.95)
-                .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Header
-                // ZStack required for centering title text while positioning back button on left
-                ZStack {
-                    Text("Select Friend to Navigate to")
-                        .font(.system(size: 18, weight: .semibold))
-
-                    HStack {
+        VStack(spacing: 0) {
+            // Header
+                Text("Select Friend to Navigate to")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .overlay(alignment: .leading) {
                         Button {
                             dismiss()
                         } label: {
@@ -52,9 +45,7 @@ struct ARNavigationSelectFriendView: View {
                                 .clipShape(Circle())
                                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 3)
                         }
-                        Spacer()
                     }
-                }
                 .padding(.horizontal)
                 .padding(.top, 12)
                 .padding(.bottom, 8)
@@ -97,15 +88,11 @@ struct ARNavigationSelectFriendView: View {
                     startARNavigation()
                 } label: {
                     HStack(spacing: 12) {
-                        // ZStack required for layering circle background with centered icon
-                        ZStack {
-                            Circle()
-                                .fill(Color.white.opacity(0.25))
-                                .frame(width: 26, height: 26)
-                            Image(systemName: "arkit")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+                        Image(systemName: "arkit")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 26, height: 26)
+                            .background(Circle().fill(Color.white.opacity(0.25)))
 
                         Text("Start AR Navigation")
                             .font(.headline)
@@ -128,7 +115,7 @@ struct ARNavigationSelectFriendView: View {
                 }
                 .disabled(!canStart)
             }
-        }
+        .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
 //            if friends.isEmpty {
@@ -195,6 +182,7 @@ struct ARNavigationSelectFriendView: View {
 
     private var selectedFriend: UserProfile? {
         guard let id = selectedFriendID else { return nil }
+        print(nearbyNavigation!.discoveredUsers.first { $0.userId == id })
         return nearbyNavigation!.discoveredUsers.first { $0.userId == id }
     }
 
