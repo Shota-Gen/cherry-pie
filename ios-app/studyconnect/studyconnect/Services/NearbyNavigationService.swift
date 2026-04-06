@@ -33,9 +33,10 @@ class NearbyNavigationService: NSObject {
     private(set) var peerToPeerStatus: PeerToPeerStatus = PeerToPeerStatus.Inactive
     
     private var commitedUser: MCPeerID? = nil
-    private var foundUsers: [MCPeerID: UserProfile] = [
-        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
-        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
+    private var foundUsers: [MCPeerID: UserProfile] = [:
+        // dummy data
+//        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
+//        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
     ]
     var discoveredUsers: [UserProfile] {
         get {
