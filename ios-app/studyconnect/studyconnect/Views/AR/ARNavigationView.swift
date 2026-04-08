@@ -35,8 +35,10 @@ struct ARNavigationView: View {
             }
         }
         .onAppear() {
+            // TODO: beginSearch
         }
         .onDisappear() {
+            // TODO: beginBroadcast
         }
     }
 

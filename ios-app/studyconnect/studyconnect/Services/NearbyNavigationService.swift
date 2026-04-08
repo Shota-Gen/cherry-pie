@@ -103,6 +103,18 @@ class NearbyNavigationService: NSObject {
         niSession = NISession()
         niSession.delegate = self
         niDiscoveryToken = niSession.discoveryToken
+        
+        // begin collecting altitude data
+        if CMAltimeter.isRelativeAltitudeAvailable() {
+            altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
+                if data != nil {
+                    let time: Double = Date().timeIntervalSince1970
+                    let userid: String = self.currentUser.id.uuidString
+                    print("\(userid) at \(time): \(data!.altitude)")
+                    self.altitude = data!.altitude
+                }
+            })
+        }
     }
     
     func broadcastUser() {
@@ -196,19 +208,6 @@ class NearbyNavigationService: NSObject {
                 .removeExistingAnchors
             ]
         )
-        
-        // TODO: move elsewhere, no longer dependent on establishing connection
-        print("STARTTTTTT")
-        if CMAltimeter.isRelativeAltitudeAvailable() {
-            altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
-                if data != nil {
-                    let time: Double = Date().timeIntervalSince1970
-                    let userid: String = self.currentUser.id.uuidString
-                    print("\(userid) at \(time): \(data!.altitude)")
-                    self.altitude = data!.altitude
-                }
-            })
-        }
     }
     
     private func accumulateDatapoints(position: SIMD3<Float>, distance: Float) {
