@@ -14,8 +14,12 @@ struct ARNavigationSelectFriendView: View {
     @Environment(\.openURL) private var openURL
 
     // TODO: potentially delete? we are discovering nearby users not friends
-    //@State private var friends: [UserProfile] = []
-    //@State private var service = FriendsService()
+    @State private var friends: [UserProfile] = [
+        // dummy data
+        UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
+        UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
+    ]
+    @State private var service = FriendsService()
     @State private var selectedFriendID: UUID? = nil
     @State private var navigateToAR = false
 
@@ -61,7 +65,7 @@ struct ARNavigationSelectFriendView: View {
                             .padding(.horizontal)
 
                         VStack(spacing: 10) {
-                            ForEach(nearbyNavigation!.discoveredUsers) { friend in
+                            ForEach(friends) { friend in
                                 Button {
                                     selectedFriendID = friend.userId
                                 } label: {
@@ -118,13 +122,13 @@ struct ARNavigationSelectFriendView: View {
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
-//            if friends.isEmpty {
-//                friends = service.getSuggestedFriends()
-//            }
-            nearbyNavigation!.searchUsers()
+            if friends.isEmpty {
+                Task {
+                    friends = await service.getSuggestedFriends()
+                }
+            }
         }
         .onDisappear() {
-            //nearbyNavigation!.broadcastUser()
         }
         .alert("Camera Access Required", isPresented: $showCameraPermissionAlert) {
             Button("OK", role: .cancel) { }
@@ -144,8 +148,8 @@ struct ARNavigationSelectFriendView: View {
 
     private func startARNavigation() {
         guard canStart else { return }
+        nearbyNavigation!.targetUser = selectedFriend
 
-        nearbyNavigation!.invitePeer(peer: selectedFriendID!)
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         switch status {
         case .authorized:
@@ -182,8 +186,7 @@ struct ARNavigationSelectFriendView: View {
 
     private var selectedFriend: UserProfile? {
         guard let id = selectedFriendID else { return nil }
-        print(nearbyNavigation!.discoveredUsers.first { $0.userId == id })
-        return nearbyNavigation!.discoveredUsers.first { $0.userId == id }
+        return friends.first { $0.userId == id }
     }
 
     @ViewBuilder
@@ -198,6 +201,6 @@ struct ARNavigationSelectFriendView: View {
 
 #Preview {
     NavigationStack {
-        ARNavigationSelectFriendView(nearbyNavigation: .constant(NearbyNavigationService(user: nil)))
+        ARNavigationSelectFriendView(nearbyNavigation: .constant(NearbyNavigationService(user: UserProfile(userId: UUID(), displayName: "Unknown User",  email: "unknown", studySpot: "Unknown", distanceMiles: 0.0))))
     }
 }

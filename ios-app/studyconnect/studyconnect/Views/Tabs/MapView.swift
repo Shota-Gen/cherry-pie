@@ -101,8 +101,7 @@ struct MapView: View {
             } catch {
                 userprofile = UserProfile(userId: supabase.session!.user.id, displayName: "Unknown", email: "unknown", studySpot: "unknown", distanceMiles: 0.0)
             }
-            nearbyNavigation = NearbyNavigationService(user: userprofile)
-            nearbyNavigation!.userId = supabase.session!.user.id.uuidString
+            nearbyNavigation = NearbyNavigationService(user: userprofile!)
             nearbyNavigation!.broadcastUser()
             showARNavigationBanner = true
         }

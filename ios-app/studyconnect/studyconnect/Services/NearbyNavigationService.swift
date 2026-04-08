@@ -16,10 +16,8 @@ enum PeerToPeerStatus {
     case Inactive
     case Broadcasting
     case Searching
-    case BroadcastConnecting
-    case SearchConnecting
+    case Discovered
     case Navigating
-    case Approached
 }
 
 struct PeerToPeerMessage: Codable {
@@ -31,10 +29,10 @@ struct PeerToPeerMessage: Codable {
 class NearbyNavigationService: NSObject {
     let MINIMUM_MEASUREMENT_DISTANCE: Float = 0.3
     let DATAPOINT_ANGLE_THRESHOLD: Float = 0.15
-    private(set) var peerToPeerStatus: PeerToPeerStatus = PeerToPeerStatus.Inactive
+    private(set) var status: PeerToPeerStatus = PeerToPeerStatus.Inactive
     
     private var currentUser: UserProfile
-    private var commitedUser: MCPeerID? = nil
+    public var targetUser: UserProfile? = nil
     private var foundUsers: [MCPeerID: UserProfile] = [
         // dummy data
         MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
@@ -65,15 +63,7 @@ class NearbyNavigationService: NSObject {
     }
     
     // peer to peer variables
-    public var myPeerId: MCPeerID = MCPeerID(displayName: "unknown" + UUID().uuidString)
-    var userId: String {
-        get {
-            return myPeerId.displayName
-        }
-        set {
-            myPeerId = MCPeerID(displayName: newValue)
-        }
-    }
+    public var myPeerId: MCPeerID
     
     private var mcSession: MCSession!
     private var mcAdvertiser: MCNearbyServiceAdvertiser!
@@ -83,12 +73,9 @@ class NearbyNavigationService: NSObject {
     private var niSession: NISession!
     private var niDiscoveryToken: NIDiscoveryToken!
     
-    init(user: UserProfile?) {
-        if user == nil {
-            currentUser = UserProfile(userId: UUID(), displayName: "Unknown User",  email: "unknown", studySpot: "Unknown", distanceMiles: 0.0)
-        } else {
-            currentUser = user!
-        }
+    init(user: UserProfile) {
+        currentUser = user
+        myPeerId = MCPeerID(displayName: user.userId.uuidString)
         super.init()
         
         // setup multipeer connect
@@ -119,57 +106,47 @@ class NearbyNavigationService: NSObject {
     }
     
     func broadcastUser() {
-        if peerToPeerStatus != PeerToPeerStatus.Inactive {
+        if status != PeerToPeerStatus.Inactive {
             deactivate()
         }
 
         mcAdvertiser.startAdvertisingPeer()
-        peerToPeerStatus = PeerToPeerStatus.Broadcasting
+        status = PeerToPeerStatus.Broadcasting
     }
     
     func searchUsers() {
-        if peerToPeerStatus != PeerToPeerStatus.Inactive {
+        if status != PeerToPeerStatus.Inactive {
             deactivate()
         }
         
         mcBrowser.startBrowsingForPeers()
-        peerToPeerStatus = PeerToPeerStatus.Searching
-    }
-    
-    func invitePeer(peer: UUID) {
-        // TODO: remove startNISession
-        startNISession(token: nil)
-        if peerToPeerStatus != PeerToPeerStatus.Searching {
-            return
-        }
-        
-        for (userPeerId, userProf) in foundUsers {
-            if userProf.userId.uuidString == peer.uuidString {
-                mcBrowser.invitePeer(userPeerId, to: mcSession, withContext: nil, timeout: 10)
-            }
-        }
+        status = PeerToPeerStatus.Searching
     }
 
     func deactivate() {
         measurementReset()
-        switch peerToPeerStatus {
+        switch status {
         case .Inactive:
             return
         case .Broadcasting:
             mcAdvertiser.stopAdvertisingPeer()
-            peerToPeerStatus = PeerToPeerStatus.Inactive
+            status = PeerToPeerStatus.Inactive
             return
         case .Searching:
             mcBrowser.stopBrowsingForPeers()
-            peerToPeerStatus = PeerToPeerStatus.Inactive
+            status = PeerToPeerStatus.Inactive
             return
-        default:
-            break
+        case .Discovered:
+            mcSession.disconnect()
+            status = PeerToPeerStatus.Inactive
+        case .Navigating:
+            niSession.invalidate()
+            status = PeerToPeerStatus.Inactive
         }
     }
     
     private func measurementReset() {
-        print("reset")
+        // TODO: double check
         altitude = 0.0
         targetMeasurementCount = 0.0
         targetSum = .zero
@@ -177,7 +154,6 @@ class NearbyNavigationService: NSObject {
         distanceCollected = []
         hasData = false
         arview.session.pause()
-        //altimeter.stopAbsoluteAltitudeUpdates()
     }
     
     private func sendNIDiscoveryToken() {
@@ -197,14 +173,14 @@ class NearbyNavigationService: NSObject {
         )
     }
     
-    private func startNISession(token: NIDiscoveryToken?) {
-        // TODO: uncomment
-//        let config = NINearbyPeerConfiguration(peerToken: token)
-//        niSession.run(config)
+    private func startNISession(token: NIDiscoveryToken) {
+        let config = NINearbyPeerConfiguration(peerToken: token)
+        niSession.run(config)
         
-//        if peerToPeerStatus != PeerToPeerStatus.Navigating {
-//            return
-//        }
+        if status != PeerToPeerStatus.Discovered {
+            return
+        }
+        status = PeerToPeerStatus.Navigating
         
         // start ARView
         let arkit_config = ARWorldTrackingConfiguration()
@@ -221,6 +197,7 @@ class NearbyNavigationService: NSObject {
             ]
         )
         
+        // TODO: move elsewhere, no longer dependent on establishing connection
         print("STARTTTTTT")
         if CMAltimeter.isRelativeAltitudeAvailable() {
             altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
@@ -232,26 +209,6 @@ class NearbyNavigationService: NSObject {
                 }
             })
         }
-        
-        altimeterStreamingTimer = Timer.scheduledTimer(
-            withTimeInterval: 5.0,
-            repeats: true,
-            block: { [weak self] _ in
-                self?.sendAltitudeReadings()
-            })
-    }
-
-    // TODO: remove, unnecessary anymore
-    private func sendAltitudeReadings() {
-        let altitudeData: Data = Data(bytes: &altitude, count: MemoryLayout<Double>.size)
-        let message = PeerToPeerMessage(identifier: "AltitudeReading", data: altitudeData)
-        let encoded = try? JSONEncoder().encode(message)
-        
-        try? mcSession.send(
-            encoded!,
-            toPeers: mcSession.connectedPeers,
-            with: .reliable
-        )
     }
     
     private func accumulateDatapoints(position: SIMD3<Float>, distance: Float) {
@@ -369,27 +326,22 @@ extension NearbyNavigationService: NISessionDelegate {
     }
     
     func session(_ session: NISession, didInvalidateWith error: Error) {
-        print("Ni session invalided, deactivating")
+        // TODO: test this error
+        // Nearby Interaction Failed, should deactivate
         deactivate()
+        broadcastUser()
     }
 }
 
 extension NearbyNavigationService: MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+        // TODO: double check my changes, do we stop advertising/browsing?
         switch state {
         case .connected:
-            if peerToPeerStatus == PeerToPeerStatus.Broadcasting {
-                //mcAdvertiser.stopAdvertisingPeer()
-                peerToPeerStatus = PeerToPeerStatus.BroadcastConnecting
-            } else if peerToPeerStatus == PeerToPeerStatus.Searching {
-                //mcBrowser.stopBrowsingForPeers()
-                peerToPeerStatus = PeerToPeerStatus.SearchConnecting
-            }
-            commitedUser = peerID
             sendNIDiscoveryToken()
         case .notConnected:
             deactivate()
-            commitedUser = nil
+            broadcastUser()
         default:
             break
         }
@@ -397,18 +349,11 @@ extension NearbyNavigationService: MCSessionDelegate {
     
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
         let message = try! JSONDecoder().decode(PeerToPeerMessage.self, from: data)
-        if message.identifier == "NIToken" {
-            if let token = try! NSKeyedUnarchiver.unarchivedObject(
-                ofClass: NIDiscoveryToken.self,
-                from: message.data
-            ) {
-                if peerToPeerStatus == PeerToPeerStatus.BroadcastConnecting {
-                    peerToPeerStatus = PeerToPeerStatus.Approached
-                } else if peerToPeerStatus == PeerToPeerStatus.SearchConnecting {
-                    peerToPeerStatus = PeerToPeerStatus.Navigating
-                }
-                startNISession(token: token)
-            }
+        if let token = try! NSKeyedUnarchiver.unarchivedObject(
+            ofClass: NIDiscoveryToken.self,
+            from: message.data
+        ) {
+            startNISession(token: token)
         }
     }
     
@@ -434,13 +379,16 @@ extension NearbyNavigationService: MCNearbyServiceAdvertiserDelegate {
                     didReceiveInvitationFromPeer peerID: MCPeerID,
                     withContext context: Data?,
                     invitationHandler: @escaping (Bool, MCSession?) -> Void) {
+        // TODO: do we want to stop advertising when found?
         invitationHandler(true, mcSession)
-        mcAdvertiser.stopAdvertisingPeer()
-        peerToPeerStatus = PeerToPeerStatus.BroadcastConnecting
+        // mcAdvertiser.stopAdvertisingPeer()
+        status = PeerToPeerStatus.Discovered
     }
     
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: any Error) {
-        print("Advertiser has failed!")
+        // unable to advertise self, should deactivate and try again
+        deactivate()
+        broadcastUser()
     }
 }
 
@@ -448,21 +396,23 @@ extension NearbyNavigationService: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser,
                  foundPeer peerID: MCPeerID,
                  withDiscoveryInfo info: [String : String]?) {
-        print("found user")
-        // TODO: FINISH IMPLEMENTATION, lookup user, don't add if don't exist
-        if peerID == myPeerId {
+        if peerID.displayName != targetUser?.userId.uuidString {
             return
         }
-        foundUsers[peerID] = UserProfile(userId: UUID(), displayName: "SpongeBob",  email: "spongebob@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2)
+        
+        mcBrowser.invitePeer(peerID, to: mcSession, withContext: nil, timeout: 10)
     }
     
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
-        // the user is no longer searchable, remove them
-        print("user disconnected")
-//        foundUsers.removeValue(forKey: peerID)
+        if peerID.displayName != targetUser?.userId.uuidString {
+            return
+        }
+        status = PeerToPeerStatus.Searching
     }
     
     func browser(_ browser: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: any Error) {
-        print("Browser has failed!")
+        // unable to browse for users, should deactivate and try again
+        deactivate()
+        searchUsers()
     }
 }
