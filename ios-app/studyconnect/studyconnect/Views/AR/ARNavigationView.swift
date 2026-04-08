@@ -208,6 +208,8 @@ private struct ARViewContainer: UIViewRepresentable {
 //            let targetWorldPosition: SIMD3<Float> = nearbyNavigation.target
             
             timer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { _ in
+                print("====")
+                print(nearbyNavigation.gps)
                 guard let frame = view.session.currentFrame else { return }
                 let targetWorldPosition: SIMD3<Float> = nearbyNavigation.target
                 

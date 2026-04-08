@@ -10,7 +10,7 @@ struct SupabaseUserRow: Codable, Hashable {
     var isInvisible: Bool?
     var lastKnownLat: Double?
     var lastKnownLng: Double?
-    var currentFloor: Int?
+    var altitude: Double?
     var createdAt: Date?
     var profileImage: String?
     var studySpot: String?
@@ -25,7 +25,7 @@ struct SupabaseUserRow: Codable, Hashable {
         case isInvisible = "is_invisible"
         case lastKnownLat = "last_known_lat"
         case lastKnownLng = "last_known_lng"
-        case currentFloor = "current_floor"
+        case altitude
         case createdAt = "created_at"
         case profileImage = "profile_image"
         case studySpot = "study_spot"
@@ -43,7 +43,7 @@ extension SupabaseUserRow {
         self.isInvisible = profile.isInvisible
         self.lastKnownLat = profile.lastKnownLat
         self.lastKnownLng = profile.lastKnownLng
-        self.currentFloor = profile.currentFloor
+        self.altitude = profile.altitude
         self.createdAt = profile.createdAt
         self.profileImage = profile.profileImage
         self.studySpot = profile.studySpot
@@ -64,7 +64,7 @@ extension SupabaseUserRow {
             isInvisible: isInvisible ?? false,
             lastKnownLat: lastKnownLat,
             lastKnownLng: lastKnownLng,
-            currentFloor: currentFloor ?? 1,
+            altitude: altitude ?? 0,
             createdAt: createdAt,
             distanceMiles: nil
         )

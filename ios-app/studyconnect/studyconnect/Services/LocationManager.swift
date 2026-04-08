@@ -16,6 +16,7 @@ import Observation
 class LocationManager: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     var location: CLLocationCoordinate2D?
+    public var altitude: Double = 0
     
     override init() {
         super.init()
@@ -30,6 +31,8 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         
         // Update the coordinate for Supabase
         self.location = location
+        print("====")
+        print(altitude)
         
         // Send location to db
         Task {

@@ -141,7 +141,7 @@ class SupabaseManager {
                 isInvisible: nil,
                 lastKnownLat: nil,
                 lastKnownLng: nil,
-                currentFloor: nil,
+                altitude: nil,
                 createdAt: nil,
                 profileImage: nil,
                 studySpot: nil,

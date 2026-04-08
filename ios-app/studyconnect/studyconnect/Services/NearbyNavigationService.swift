@@ -61,6 +61,7 @@ class NearbyNavigationService: NSObject {
             return targetMeasurementCount > 0 ? targetSum / targetMeasurementCount : SIMD3<Float>(0.0, 0.0, 0.0)
         }
     }
+    private(set) var gps: CLLocationCoordinate2D? = nil
     
     // peer to peer variables
     public var myPeerId: MCPeerID
@@ -73,7 +74,7 @@ class NearbyNavigationService: NSObject {
     private var niSession: NISession!
     private var niDiscoveryToken: NIDiscoveryToken!
     
-    init(user: UserProfile) {
+    init(user: UserProfile, locationManager: LocationManager?) {
         currentUser = user
         myPeerId = MCPeerID(displayName: user.userId.uuidString)
         super.init()
@@ -108,9 +109,12 @@ class NearbyNavigationService: NSObject {
         if CMAltimeter.isRelativeAltitudeAvailable() {
             altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
                 if data != nil {
+                    // TODO: remove time and userid
                     let time: Double = Date().timeIntervalSince1970
                     let userid: String = self.currentUser.id.uuidString
-                    print("\(userid) at \(time): \(data!.altitude)")
+//                    print("\(userid) at \(time): \(data!.altitude)")
+                    locationManager?.altitude = data!.altitude
+                    self.gps = locationManager?.location
                     self.altitude = data!.altitude
                 }
             })

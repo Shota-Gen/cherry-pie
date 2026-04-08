@@ -34,7 +34,7 @@ class ProfileService {
                 isInvisible: false,
                 lastKnownLat: nil,
                 lastKnownLng: nil,
-                currentFloor: 1,
+                altitude: 0,
                 createdAt: nil,
                 profileImage: nil,
                 studySpot: nil,
