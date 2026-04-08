@@ -10,6 +10,8 @@ import Auth
 
 struct MapView: View {
     @Environment(\.supabaseManager) var supabase
+    
+    private var profileService = ProfileService()
 
     @State private var locManager = LocationManager()
     @State private var showARNavigationSheet = false
@@ -89,7 +91,17 @@ struct MapView: View {
             studySpots = await studySpotService.getStudySpots()
             activeUsers = await studySpotService.getActiveUsers()
             
-            nearbyNavigation = NearbyNavigationService()
+            // retrieve the current user
+            var userprofile: UserProfile? = nil
+            do {
+                userprofile = try await profileService.fetchMyProfile(
+                    userId: supabase.session!.user.id,
+                    fallbackEmail: supabase.session!.user.email
+                )
+            } catch {
+                userprofile = UserProfile(userId: supabase.session!.user.id, displayName: "Unknown", email: "unknown", studySpot: "unknown", distanceMiles: 0.0)
+            }
+            nearbyNavigation = NearbyNavigationService(user: userprofile)
             nearbyNavigation!.userId = supabase.session!.user.id.uuidString
             nearbyNavigation!.broadcastUser()
             showARNavigationBanner = true

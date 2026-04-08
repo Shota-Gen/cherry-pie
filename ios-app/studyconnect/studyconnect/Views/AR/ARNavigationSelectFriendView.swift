@@ -198,6 +198,6 @@ struct ARNavigationSelectFriendView: View {
 
 #Preview {
     NavigationStack {
-        ARNavigationSelectFriendView(nearbyNavigation: .constant(NearbyNavigationService()))
+        ARNavigationSelectFriendView(nearbyNavigation: .constant(NearbyNavigationService(user: nil)))
     }
 }

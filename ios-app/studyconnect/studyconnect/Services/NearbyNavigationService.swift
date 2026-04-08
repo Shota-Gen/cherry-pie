@@ -10,6 +10,7 @@ import NearbyInteraction
 import RealityKit
 import ARKit
 import CoreMotion
+import Auth
 
 enum PeerToPeerStatus {
     case Inactive
@@ -32,11 +33,12 @@ class NearbyNavigationService: NSObject {
     let DATAPOINT_ANGLE_THRESHOLD: Float = 0.15
     private(set) var peerToPeerStatus: PeerToPeerStatus = PeerToPeerStatus.Inactive
     
+    private var currentUser: UserProfile
     private var commitedUser: MCPeerID? = nil
-    private var foundUsers: [MCPeerID: UserProfile] = [:
+    private var foundUsers: [MCPeerID: UserProfile] = [
         // dummy data
-//        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
-//        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
+        MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
+        MCPeerID(displayName: "bbbb"): UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
     ]
     var discoveredUsers: [UserProfile] {
         get {
@@ -48,8 +50,7 @@ class NearbyNavigationService: NSObject {
     
     private var altimeterStreamingTimer: Timer? = nil
     private var altimeter: CMAltimeter = CMAltimeter()
-    private var myAltitude: Double = 0.0
-    private var targetAltitude: Double = 0.0
+    private(set) var altitude: Double = 0.0
     
     private(set) var hasData: DarwinBoolean = false
     private var positionCollected: [SIMD3<Float>] = []
@@ -82,7 +83,12 @@ class NearbyNavigationService: NSObject {
     private var niSession: NISession!
     private var niDiscoveryToken: NIDiscoveryToken!
     
-    override init() {
+    init(user: UserProfile?) {
+        if user == nil {
+            currentUser = UserProfile(userId: UUID(), displayName: "Unknown User",  email: "unknown", studySpot: "Unknown", distanceMiles: 0.0)
+        } else {
+            currentUser = user!
+        }
         super.init()
         
         // setup multipeer connect
@@ -131,6 +137,8 @@ class NearbyNavigationService: NSObject {
     }
     
     func invitePeer(peer: UUID) {
+        // TODO: remove startNISession
+        startNISession(token: nil)
         if peerToPeerStatus != PeerToPeerStatus.Searching {
             return
         }
@@ -162,8 +170,7 @@ class NearbyNavigationService: NSObject {
     
     private func measurementReset() {
         print("reset")
-        myAltitude = 0.0
-        targetAltitude = 0.0
+        altitude = 0.0
         targetMeasurementCount = 0.0
         targetSum = .zero
         positionCollected = []
@@ -190,13 +197,14 @@ class NearbyNavigationService: NSObject {
         )
     }
     
-    private func startNISession(token: NIDiscoveryToken) {
-        let config = NINearbyPeerConfiguration(peerToken: token)
-        niSession.run(config)
+    private func startNISession(token: NIDiscoveryToken?) {
+        // TODO: uncomment
+//        let config = NINearbyPeerConfiguration(peerToken: token)
+//        niSession.run(config)
         
-        if peerToPeerStatus != PeerToPeerStatus.Navigating {
-            return
-        }
+//        if peerToPeerStatus != PeerToPeerStatus.Navigating {
+//            return
+//        }
         
         // start ARView
         let arkit_config = ARWorldTrackingConfiguration()
@@ -213,26 +221,29 @@ class NearbyNavigationService: NSObject {
             ]
         )
         
-//        if CMAltimeter.isRelativeAltitudeAvailable() {
-//            altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
-//                print("altitude????")
-//                if data != nil {
-//                    print(data!.altitude)
-//                    self.myAltitude = data!.altitude
-//                }
-//            })
-//        }
+        print("STARTTTTTT")
+        if CMAltimeter.isRelativeAltitudeAvailable() {
+            altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
+                if data != nil {
+                    let time: Double = Date().timeIntervalSince1970
+                    let userid: String = self.currentUser.id.uuidString
+                    print("\(userid) at \(time): \(data!.altitude)")
+                    self.altitude = data!.altitude
+                }
+            })
+        }
         
-//        altimeterStreamingTimer = Timer.scheduledTimer(
-//            withTimeInterval: 1.0,
-//            repeats: true,
-//            block: { [weak self] _ in
-//                self?.sendAltitudeReadings()
-//            })
+        altimeterStreamingTimer = Timer.scheduledTimer(
+            withTimeInterval: 5.0,
+            repeats: true,
+            block: { [weak self] _ in
+                self?.sendAltitudeReadings()
+            })
     }
-    
+
+    // TODO: remove, unnecessary anymore
     private func sendAltitudeReadings() {
-        let altitudeData: Data = Data(bytes: &myAltitude, count: MemoryLayout<Double>.size)
+        let altitudeData: Data = Data(bytes: &altitude, count: MemoryLayout<Double>.size)
         let message = PeerToPeerMessage(identifier: "AltitudeReading", data: altitudeData)
         let encoded = try? JSONEncoder().encode(message)
         
@@ -398,11 +409,6 @@ extension NearbyNavigationService: MCSessionDelegate {
                 }
                 startNISession(token: token)
             }
-        } else if message.identifier == "AltitudeReading" {
-            targetAltitude = message.data.withUnsafeBytes {
-                $0.load(as: Double.self)
-            }
-            
         }
     }
     
