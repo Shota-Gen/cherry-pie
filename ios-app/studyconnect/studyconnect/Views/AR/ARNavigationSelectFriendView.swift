@@ -16,8 +16,8 @@ struct ARNavigationSelectFriendView: View {
     // TODO: potentially delete? we are discovering nearby users not friends
     @State private var friends: [UserProfile] = [
         // dummy data
-        UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
-        UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
+//        UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
+//        UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
     ]
     @State private var service = FriendsService()
     @State private var selectedFriendID: UUID? = nil

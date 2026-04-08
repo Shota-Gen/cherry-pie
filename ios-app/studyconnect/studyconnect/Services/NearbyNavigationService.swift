@@ -399,6 +399,7 @@ extension NearbyNavigationService: MCNearbyServiceBrowserDelegate {
             return
         }
         
+        status = PeerToPeerStatus.Discovered
         mcBrowser.invitePeer(peerID, to: mcSession, withContext: nil, timeout: 10)
     }
     

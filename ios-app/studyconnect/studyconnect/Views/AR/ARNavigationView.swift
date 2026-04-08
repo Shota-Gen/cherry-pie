@@ -36,9 +36,11 @@ struct ARNavigationView: View {
         }
         .onAppear() {
             // TODO: beginSearch
+            nearbyNavigation.searchUsers()
         }
         .onDisappear() {
             // TODO: beginBroadcast
+            nearbyNavigation.broadcastUser()
         }
     }
 
@@ -85,7 +87,7 @@ struct ARNavigationView: View {
 
             Spacer()
 
-            Text("\(Int(distanceToTarget))m")
+            Text("\(String(format: "%.2f", distanceToTarget))m")
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(Color(red: 0.22, green: 0.61, blue: 0.99))
