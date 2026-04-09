@@ -118,10 +118,9 @@ VALUES
     );
     
 -- Seed friendships for testing (Shota ↔ Alice, Shota ↔ Bob)
-INSERT INTO public.friends (user_id, friend_id)
+-- One row per friendship: user_id = sender, friend_id = receiver, both accepted.
+INSERT INTO public.friends (user_id, friend_id, user_status, friend_status)
 VALUES
-    ('6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a', 'a1111111-1111-1111-1111-111111111111'),
-    ('a1111111-1111-1111-1111-111111111111', '6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a'),
-    ('6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a', 'b2222222-2222-2222-2222-222222222222'),
-    ('b2222222-2222-2222-2222-222222222222', '6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a')
+    ('6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a', 'a1111111-1111-1111-1111-111111111111', 'accepted', 'accepted'),
+    ('6f8e7d2a-1b3c-4d5e-8f7a-9b0c1d2e3f4a', 'b2222222-2222-2222-2222-222222222222', 'accepted', 'accepted')
 ON CONFLICT DO NOTHING;

@@ -32,7 +32,13 @@ AS $$
       s.name AS spot_name
   FROM public.users u
   JOIN public.friends f
-    ON f.user_id = current_user_id AND f.friend_id = u.user_id
+    ON (
+         (f.user_id = current_user_id AND f.friend_id = u.user_id)
+         OR
+         (f.friend_id = current_user_id AND f.user_id = u.user_id)
+       )
+   AND f.user_status = 'accepted'
+   AND f.friend_status = 'accepted'
   JOIN my_spot ms ON TRUE
   JOIN public.study_spots s
     ON s.spot_id = ms.spot_id
