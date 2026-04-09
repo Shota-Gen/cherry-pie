@@ -154,6 +154,9 @@ struct ARNavigationSelectFriendView: View {
         switch status {
         case .authorized:
             permissionService.recordPermissionGranted(true)
+            Task {
+                await nearbyNavigation?.refreshTargetUserLastKnownFromSupabase()
+            }
             navigateToAR = true
 
         case .notDetermined:
@@ -162,6 +165,9 @@ struct ARNavigationSelectFriendView: View {
                 Task { @MainActor in
                     permissionService.recordPermissionGranted(granted)
                     if granted {
+                        Task {
+                            await nearbyNavigation?.refreshTargetUserLastKnownFromSupabase()
+                        }
                         navigateToAR = true
                     } else {
                         cameraPermissionMessage = "We need camera access to show AR navigation."

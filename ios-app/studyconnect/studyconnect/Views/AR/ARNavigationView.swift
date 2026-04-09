@@ -214,7 +214,8 @@ private struct ARViewContainer: UIViewRepresentable {
                 // print("Target GPS: lat=\(String(describing: nearbyNavigation.targetUser?.lastKnownLat)), lng=\(String(describing: nearbyNavigation.targetUser?.lastKnownLng))")
                 // print("Target Altitude: \(nearbyNavigation.targetUser?.altitude ?? 0)")
                 guard let frame = view.session.currentFrame else { return }
-                let targetWorldPosition: SIMD3<Float> = nearbyNavigation.target
+                let resolved = nearbyNavigation.navigationTarget(cameraTransform: frame.camera.transform)
+                let targetWorldPosition: SIMD3<Float> = resolved.targetWorld
                 
                 let cameraTransform = frame.camera.transform
                 let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
@@ -236,7 +237,8 @@ private struct ARViewContainer: UIViewRepresentable {
                 
                 // Use MainActor to update bindings from AR calculation loop
                 Task { @MainActor in
-                    distanceBinding.wrappedValue = nearbyNavigation.targetDistance
+                    // Prefer resolved distance (UWB direct/multilateration/GPS), fallback to AR-derived.
+                    distanceBinding.wrappedValue = resolved.distanceMeters > 0 ? resolved.distanceMeters : distance
                     bearingBinding.wrappedValue = bearing
                     headingBinding.wrappedValue = heading
                     isHeadingAvailableBinding.wrappedValue = true

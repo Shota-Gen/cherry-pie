@@ -15,6 +15,30 @@ class ProfileService {
         self.client = client
     }
 
+    struct LastKnownPosition: Codable, Hashable {
+        let lastKnownLat: Double?
+        let lastKnownLng: Double?
+        let altitude: Double?
+        
+        enum CodingKeys: String, CodingKey {
+            case lastKnownLat = "last_known_lat"
+            case lastKnownLng = "last_known_lng"
+            case altitude
+        }
+    }
+    
+    /// Fetches the user's last known GPS coordinates (and altitude) from Supabase `public.users`.
+    func fetchLastKnownPosition(userId: UUID) async throws -> LastKnownPosition {
+        // Select only the columns we need.
+        return try await client
+            .from("users")
+            .select("last_known_lat,last_known_lng,altitude")
+            .eq("user_id", value: userId)
+            .single()
+            .execute()
+            .value
+    }
+    
     func fetchMyProfile(userId: UUID, fallbackEmail: String? = nil) async throws -> UserProfile {
         if let row = try await fetchUserRow(userId: userId) {
             var profile = row.toUserProfile()
