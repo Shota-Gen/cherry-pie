@@ -12,7 +12,6 @@ import ARKit
 import CoreMotion
 import CoreLocation
 import Auth
-import Supabase
 
 enum PeerToPeerStatus {
     case Inactive
@@ -27,6 +26,27 @@ struct PeerToPeerMessage: Codable {
     let data: Data
 }
 
+/// How `target` / `targetDistance` were resolved (for debugging).
+enum NavigationSourceMode: String, Sendable {
+    case uwbDirect
+    /// UWB distance is flowing but multilateration has not produced an estimate yet (needs several geometry‑diverse samples).
+    case uwbCalibrating
+    case uwbMultilateration
+    case gps
+    case unavailable
+
+    var debugLabel: String {
+        switch self {
+        case .uwbDirect: return "Pure UWB"
+        case .uwbCalibrating: return "UWB (calibrating)"
+        case .uwbMultilateration: return "Multilateration"
+        case .gps: return "GPS"
+        case .unavailable: return "Unavailable"
+        }
+    }
+}
+
+/// Peer navigation: Multipeer + Nearby Interaction + ARKit. **AR UI code** should call `updateBestTargetEstimate(cameraTransform:)` once per frame, then read `target` and `targetDistance` for the peer’s best estimated position and range (UWB → multilateration → GPS).
 @Observable
 class NearbyNavigationService: NSObject {
     let MINIMUM_MEASUREMENT_DISTANCE: Float = 0.3
@@ -71,22 +91,27 @@ class NearbyNavigationService: NSObject {
     private(set) var hasData: DarwinBoolean = false
     private var positionCollected: [SIMD3<Float>] = []
     private var distanceCollected: [Float] = []
-    private var targetSum: SIMD3<Float> = .zero
-    private var targetMeasurementCount: Float = 0.0
+    /// Internal multilateration-only estimate (UWB distance, no direction). Not the public API — use `target`.
+    private var multilaterationSum: SIMD3<Float> = .zero
+    private var multilaterationCount: Float = 0.0
+    private var multilaterationEstimate: SIMD3<Float> {
+        multilaterationCount > 0 ? multilaterationSum / multilaterationCount : .zero
+    }
+
+    /// Best estimate of the peer’s position in AR world space (meters). Requires `updateBestTargetEstimate(cameraTransform:)` each frame from the AR view.
+    private(set) var target: SIMD3<Float> = .zero
+    /// Best estimate of distance to the peer (meters), same priority as `target`. Requires `updateBestTargetEstimate(cameraTransform:)` each frame from the AR view.
     private(set) var targetDistance: Float = 0.0
+    /// Which source produced the current `target` (updated in `updateBestTargetEstimate`).
+    private(set) var navigationSourceMode: NavigationSourceMode = .unavailable
     
     // UWB direction (when available) can provide a direct target.
     private(set) var uwbDirection: SIMD3<Float>? = nil
     private(set) var uwbHasDirection: Bool = false
     private var directTargetWorld: SIMD3<Float>? = nil
-
-    var target: SIMD3<Float> {
-        get {
-            return targetMeasurementCount > 0 ? targetSum / targetMeasurementCount : SIMD3<Float>(0.0, 0.0, 0.0)
-        }
-    }
+    /// Last UWB range from `NINearbyObject.distance` (meters), if any.
+    private var niDistanceMeters: Float? = nil
     private(set) var gps: CLLocationCoordinate2D? = nil
-    private let profileService = ProfileService()
     
     // peer to peer variables
     public var myPeerId: MCPeerID
@@ -146,24 +171,6 @@ class NearbyNavigationService: NSObject {
         }
     }
 
-    /// Pull the target user's last known GPS/altitude from Supabase and update local target fields.
-    func refreshTargetUserLastKnownFromSupabase() async {
-        guard let targetId = targetUser?.userId else { return }
-        do {
-            let pos = try await profileService.fetchLastKnownPosition(userId: targetId)
-            var updated = targetUser
-            updated?.lastKnownLat = pos.lastKnownLat
-            updated?.lastKnownLng = pos.lastKnownLng
-            if let alt = pos.altitude {
-                updated?.altitude = alt
-            }
-            targetUser = updated
-        } catch {
-            // Best-effort refresh; keep existing cached values on failure.
-            print("❌ refreshTargetUserLastKnownFromSupabase failed: \(error.localizedDescription)")
-        }
-    }
-    
     func broadcastUser() {
         if status != PeerToPeerStatus.Inactive {
             deactivate()
@@ -200,21 +207,33 @@ class NearbyNavigationService: NSObject {
             status = PeerToPeerStatus.Inactive
         case .Navigating:
             niSession.invalidate()
+            replaceNISessionAfterInvalidate()
             status = PeerToPeerStatus.Inactive
         }
+    }
+
+    /// `NISession` must be recreated after `invalidate()` before exchanging tokens again.
+    private func replaceNISessionAfterInvalidate() {
+        niSession = NISession()
+        niSession.delegate = self
+        niDiscoveryToken = niSession.discoveryToken
     }
     
     private func measurementReset() {
         // TODO: double check
         altitude = 0.0
-        targetMeasurementCount = 0.0
-        targetSum = .zero
+        multilaterationCount = 0.0
+        multilaterationSum = .zero
         positionCollected = []
         distanceCollected = []
         hasData = false
         uwbDirection = nil
         uwbHasDirection = false
         directTargetWorld = nil
+        niDistanceMeters = nil
+        target = .zero
+        targetDistance = 0.0
+        navigationSourceMode = .unavailable
         arview.session.pause()
     }
     
@@ -340,11 +359,11 @@ class NearbyNavigationService: NSObject {
         }
         
         let At = simd_transpose(A)
-        targetSum += simd_inverse(At * A) * At * y
-        targetMeasurementCount += 1
+        multilaterationSum += simd_inverse(At * A) * At * y
+        multilaterationCount += 1
         
         print("discovered target")
-        print(target)
+        print(multilaterationEstimate)
         hasData = true
     }
 }
@@ -372,17 +391,18 @@ extension NearbyNavigationService: NISessionDelegate {
 
         // Priority 1: if UWB direction AND distance available, use direct target.
         if let distance = distanceOpt, let direction = directionOpt {
-            targetDistance = distance
+            niDistanceMeters = distance
             uwbDirection = direction
             uwbHasDirection = true
             directTargetWorld = Self.worldTargetFromUWB(cameraTransform: transform, cameraPosition: position, direction: direction, distance: distance)
             hasData = true
+            // `target` / `targetDistance` are finalized in `updateBestTargetEstimate` each frame.
             return
         }
 
         // Priority 2: if only UWB distance available, use multilateration.
         if let distance = distanceOpt {
-            targetDistance = distance
+            niDistanceMeters = distance
             uwbDirection = nil
             uwbHasDirection = false
             directTargetWorld = nil
@@ -391,7 +411,7 @@ extension NearbyNavigationService: NISessionDelegate {
             return
         }
 
-        // Priority 3 (fallback) will be handled by GPS in navigationTarget().
+        // Priority 3 (GPS) is applied in `updateBestTargetEstimate` when UWB data is missing.
     }
     
     func session(_ session: NISession, didInvalidateWith error: Error) {
@@ -403,11 +423,12 @@ extension NearbyNavigationService: NISessionDelegate {
 }
 
 extension NearbyNavigationService {
-    enum NavigationTargetMode {
-        case uwbDirect
-        case uwbMultilateration
-        case gps
-        case unavailable
+    /// Call once per AR frame (e.g. from `ARView`’s display link) so `target` and `targetDistance` reflect UWB → multilateration → GPS priority.
+    func updateBestTargetEstimate(cameraTransform: simd_float4x4) {
+        let resolved = resolveBestEstimate(cameraTransform: cameraTransform)
+        target = resolved.targetWorld
+        targetDistance = resolved.distanceMeters
+        navigationSourceMode = resolved.mode
     }
 
     static func worldTargetFromUWB(cameraTransform: simd_float4x4, cameraPosition: SIMD3<Float>, direction: SIMD3<Float>, distance: Float) -> SIMD3<Float> {
@@ -415,6 +436,16 @@ extension NearbyNavigationService {
         let worldDir4 = cameraTransform * SIMD4<Float>(localDir.x, localDir.y, localDir.z, 0.0)
         let worldDir = SIMD3<Float>(worldDir4.x, worldDir4.y, worldDir4.z)
         return cameraPosition + (simd_normalize(worldDir) * distance)
+    }
+
+    /// Camera look direction projected onto the horizontal plane (perpendicular to camera “up”), for a coarse “along‑range” hint before multilateration converges.
+    private static func horizontalForward(cameraTransform: simd_float4x4) -> SIMD3<Float> {
+        let forward = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
+        let up = SIMD3<Float>(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z)
+        let g = simd_normalize(up)
+        var f = forward - g * simd_dot(forward, g)
+        if simd_length_squared(f) < 1e-8 { return simd_normalize(forward) }
+        return simd_normalize(f)
     }
 
     static func worldOffsetFromGPS(current: CLLocationCoordinate2D, target: CLLocationCoordinate2D) -> (eastMeters: Double, northMeters: Double) {
@@ -431,21 +462,32 @@ extension NearbyNavigationService {
     /// Resolve the best available navigation target in AR world space.
     /// Priority:
     /// 1) UWB direction + distance
-    /// 2) UWB distance via multilateration
-    /// 3) GPS (if both `gps` and `targetGPS` exist)
-    func navigationTarget(cameraTransform: simd_float4x4) -> (targetWorld: SIMD3<Float>, distanceMeters: Float, mode: NavigationTargetMode) {
+    /// 2) UWB distance via multilateration (after enough samples)
+    /// 3) UWB distance only — coarse hint along horizontal look axis while multilateration warms up (avoids GPS masking active ranging)
+    /// 4) GPS if local `gps` and peer `targetGPS` exist (`targetGPS` comes from `targetUser`’s last-known lat/lng)
+    private func resolveBestEstimate(cameraTransform: simd_float4x4) -> (targetWorld: SIMD3<Float>, distanceMeters: Float, mode: NavigationSourceMode) {
         let cameraPosition = SIMD3<Float>(
             cameraTransform.columns.3.x,
             cameraTransform.columns.3.y,
             cameraTransform.columns.3.z
         )
 
-        if let direct = directTargetWorld, uwbHasDirection, targetDistance > 0 {
-            return (direct, targetDistance, .uwbDirect)
+        if let direct = directTargetWorld, uwbHasDirection {
+            let d = niDistanceMeters ?? 0
+            if d > 0 {
+                return (direct, d, .uwbDirect)
+            }
         }
 
-        if targetMeasurementCount > 0, targetDistance > 0 {
-            return (target, targetDistance, .uwbMultilateration)
+        if multilaterationCount > 0, let d = niDistanceMeters, d > 0 {
+            return (multilaterationEstimate, d, .uwbMultilateration)
+        }
+
+        // Nearby Interaction is providing range but multilateration has not solved yet — GPS was incorrectly winning here before.
+        if status == .Navigating, let d = niDistanceMeters, d > 0, multilaterationCount == 0 {
+            let f = Self.horizontalForward(cameraTransform: cameraTransform)
+            let roughTarget = cameraPosition + f * d
+            return (roughTarget, d, .uwbCalibrating)
         }
 
         if let currentGPS = gps, let destGPS = targetGPS {

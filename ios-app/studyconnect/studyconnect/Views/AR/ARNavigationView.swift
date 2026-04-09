@@ -8,9 +8,10 @@ struct ARNavigationView: View {
     let friend: UserProfile
     @Binding var nearbyNavigation: NearbyNavigationService!
     @State private var distanceToTarget: Float = 5.0
+    /// Signed angle (degrees) in the camera’s horizontal plane from look direction toward the target — use alone for overlay rotation (do not mix with world heading).
     @State private var bearingToTarget: Float = 0
-    @State private var deviceHeading: Float = 0
-    @State private var isHeadingAvailable = false
+    /// Mirrored from `nearbyNavigation` on each AR frame so SwiftUI reliably redraws (service updates alone do not always refresh through `@Binding`).
+    @State private var navigationSourceDebug: String = NavigationSourceMode.unavailable.debugLabel
 
     var body: some View {
         // ZStack required for layering AR content with overlaid UI elements (compass arrow, top bar, target card)
@@ -18,11 +19,17 @@ struct ARNavigationView: View {
             Color.black
                 .ignoresSafeArea(edges: .all)
 
-            ARViewContainer(friend: friend, distanceToTarget: $distanceToTarget, bearingToTarget: $bearingToTarget, deviceHeading: $deviceHeading, isHeadingAvailable: $isHeadingAvailable, nearbyNavigation: $nearbyNavigation)
+            ARViewContainer(
+                friend: friend,
+                distanceToTarget: $distanceToTarget,
+                bearingToTarget: $bearingToTarget,
+                navigationSourceDebug: $navigationSourceDebug,
+                nearbyNavigation: $nearbyNavigation
+            )
                 .ignoresSafeArea(edges: .all)
 
-            // Direction arrow - points to target
-            compassArrow(bearing: bearingToTarget, heading: deviceHeading)
+            // Direction arrow — rotation is camera-relative azimuth only (matches the live camera feed).
+            compassArrow(cameraRelativeAzimuthDegrees: bearingToTarget)
 
             VStack(spacing: 0) {
                 topBar
@@ -33,6 +40,22 @@ struct ARNavigationView: View {
                 targetCard
                     .padding(.bottom, 60)
             }
+
+            // Debug on top so the target card / chrome never occludes it; value driven by @State from the AR timer.
+            VStack {
+                Spacer()
+                Text("Source: \(navigationSourceDebug)")
+                    .font(.caption.monospaced())
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.yellow)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.65))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.bottom, 200)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .allowsHitTesting(false)
         }
         .onAppear() {
             // TODO: beginSearch
@@ -44,14 +67,13 @@ struct ARNavigationView: View {
         }
     }
 
-    private func compassArrow(bearing: Float, heading: Float) -> some View {
-        let relativeAngle = bearing - heading
-        
-        return VStack {
+    private func compassArrow(cameraRelativeAzimuthDegrees: Float) -> some View {
+        // `cameraRelativeAzimuthDegrees` is atan2(right, forward) in the plane perpendicular to camera up — already accounts for device rotation via the AR camera pose. Do not subtract a separate world heading.
+        VStack {
             Image(systemName: "location.fill")
                 .font(.system(size: 36, weight: .bold))
                 .foregroundColor(Color(red: 0.22, green: 0.61, blue: 0.99))
-                .rotationEffect(.degrees(Double(relativeAngle)))
+                .rotationEffect(.degrees(Double(cameraRelativeAzimuthDegrees)))
                 .padding(16)
                 .background(Color.black.opacity(0.5))
                 .clipShape(Circle())
@@ -175,8 +197,7 @@ private struct ARViewContainer: UIViewRepresentable {
     let friend: UserProfile
     @Binding var distanceToTarget: Float
     @Binding var bearingToTarget: Float
-    @Binding var deviceHeading: Float
-    @Binding var isHeadingAvailable: Bool
+    @Binding var navigationSourceDebug: String
     @Binding var nearbyNavigation: NearbyNavigationService!
 
     func makeCoordinator() -> Coordinator {
@@ -193,7 +214,13 @@ private struct ARViewContainer: UIViewRepresentable {
         
 //         Set up location tracking through periodic updates
         let coordinator = context.coordinator
-        coordinator.trackingUpdates(nearbyNavigation: nearbyNavigation, view: nearbyNavigation.arview, distanceBinding: $distanceToTarget, bearingBinding: $bearingToTarget, headingBinding: $deviceHeading, isHeadingAvailableBinding: $isHeadingAvailable)
+        coordinator.trackingUpdates(
+            nearbyNavigation: nearbyNavigation,
+            view: nearbyNavigation.arview,
+            distanceBinding: $distanceToTarget,
+            bearingBinding: $bearingToTarget,
+            navigationSourceDebugBinding: $navigationSourceDebug
+        )
         
         return nearbyNavigation.arview
     }
@@ -203,7 +230,13 @@ private struct ARViewContainer: UIViewRepresentable {
     class Coordinator {
         private var timer: Timer?
         
-        func trackingUpdates(nearbyNavigation: NearbyNavigationService, view: ARView, distanceBinding: Binding<Float>, bearingBinding: Binding<Float>, headingBinding: Binding<Float>, isHeadingAvailableBinding: Binding<Bool>) {
+        func trackingUpdates(
+            nearbyNavigation: NearbyNavigationService,
+            view: ARView,
+            distanceBinding: Binding<Float>,
+            bearingBinding: Binding<Float>,
+            navigationSourceDebugBinding: Binding<String>
+        ) {
             // Target position in world space
 //            let targetWorldPosition: SIMD3<Float> = nearbyNavigation.target
             
@@ -214,8 +247,8 @@ private struct ARViewContainer: UIViewRepresentable {
                 // print("Target GPS: lat=\(String(describing: nearbyNavigation.targetUser?.lastKnownLat)), lng=\(String(describing: nearbyNavigation.targetUser?.lastKnownLng))")
                 // print("Target Altitude: \(nearbyNavigation.targetUser?.altitude ?? 0)")
                 guard let frame = view.session.currentFrame else { return }
-                let resolved = nearbyNavigation.navigationTarget(cameraTransform: frame.camera.transform)
-                let targetWorldPosition: SIMD3<Float> = resolved.targetWorld
+                nearbyNavigation.updateBestTargetEstimate(cameraTransform: frame.camera.transform)
+                let targetWorldPosition = nearbyNavigation.target
                 
                 let cameraTransform = frame.camera.transform
                 let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
@@ -224,24 +257,26 @@ private struct ARViewContainer: UIViewRepresentable {
                 let deltaVector = targetWorldPosition - cameraPosition
                 let distance = simd_length(deltaVector)
                 
-                // Calculate bearing
-                let forward = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
-                let right = SIMD3<Float>(cameraTransform.columns.0.x, cameraTransform.columns.0.y, cameraTransform.columns.0.z)
-                let forwardDist = simd_dot(deltaVector, forward)
-                let rightDist = simd_dot(deltaVector, right)
-                let angleRadians = atan2(rightDist, forwardDist)
-                let bearing = angleRadians * 180 / .pi
-                
-                // Calculate heading
-                let heading = atan2(forward.x, -forward.z) * 180 / .pi
+                // Camera-relative azimuth: angle in the horizontal plane (perpendicular to camera up) from look direction toward the target.
+                let forward = simd_normalize(SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z))
+                let right = simd_normalize(SIMD3<Float>(cameraTransform.columns.0.x, cameraTransform.columns.0.y, cameraTransform.columns.0.z))
+                let up = simd_normalize(SIMD3<Float>(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z))
+                let deltaHorizontal = deltaVector - up * simd_dot(deltaVector, up)
+                let forwardDist = simd_dot(deltaHorizontal, forward)
+                let rightDist = simd_dot(deltaHorizontal, right)
+                let bearing: Float
+                if simd_length_squared(deltaHorizontal) < 1e-8 {
+                    bearing = 0
+                } else {
+                    bearing = atan2(rightDist, forwardDist) * 180 / .pi
+                }
                 
                 // Use MainActor to update bindings from AR calculation loop
                 Task { @MainActor in
-                    // Prefer resolved distance (UWB direct/multilateration/GPS), fallback to AR-derived.
-                    distanceBinding.wrappedValue = resolved.distanceMeters > 0 ? resolved.distanceMeters : distance
+                    // `targetDistance` is updated with `target` via `updateBestTargetEstimate`.
+                    distanceBinding.wrappedValue = nearbyNavigation.targetDistance > 0 ? nearbyNavigation.targetDistance : distance
                     bearingBinding.wrappedValue = bearing
-                    headingBinding.wrappedValue = heading
-                    isHeadingAvailableBinding.wrappedValue = true
+                    navigationSourceDebugBinding.wrappedValue = nearbyNavigation.navigationSourceMode.debugLabel
                 }
             }
         }
