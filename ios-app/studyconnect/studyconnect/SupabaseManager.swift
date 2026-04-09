@@ -159,14 +159,15 @@ class SupabaseManager {
         }
     }
     
-    func updateLocation(latitude: Double, longitude: Double) async {
+    func updateLocation(latitude: Double, longitude: Double, altitude: Double) async {
         let userId = self.session?.user.id
         guard let userId else { return }
 
         do {
             let updateData: [String: AnyEncodable] = [
                 "last_known_lat": AnyEncodable(latitude),
-                "last_known_lng": AnyEncodable(longitude)
+                "last_known_lng": AnyEncodable(longitude),
+                "altitude": AnyEncodable(altitude)
             ]
 
             try await client

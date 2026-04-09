@@ -125,4 +125,35 @@ class FriendsService {
     func getSuggestedFriends() async -> [UserProfile] {
         return await getFriendsList()
     }
+
+    // Returns only visible friends who are in the same study spot as the current user.
+    func getFriendsInSameStudySpot() async -> [UserProfile] {
+        guard let userId = SupabaseManager.shared.session?.user.id else { return [] }
+        let client = SupabaseManager.shared.client
+
+        do {
+            let result = try await client
+                .rpc("get_friends_in_same_study_spot", params: ["current_user_id": userId])
+                .execute()
+            let rows = (try? JSONSerialization.jsonObject(with: result.data) as? [[String: Any]]) ?? []
+
+            return rows.compactMap { row -> UserProfile? in
+                guard let idStr = row["user_id"] as? String,
+                      let id = UUID(uuidString: idStr),
+                      let displayName = row["display_name"] as? String else { return nil }
+
+                return UserProfile(
+                    userId: id,
+                    displayName: displayName,
+                    email: "",
+                    lastKnownLat: row["last_known_lat"] as? Double,
+                    lastKnownLng: row["last_known_lng"] as? Double,
+                    altitude: row["altitude"] as? Double ?? 0
+                )
+            }
+        } catch {
+            print("❌ Failed to fetch friends in same study spot: \(error.localizedDescription)")
+            return []
+        }
+    }
 }

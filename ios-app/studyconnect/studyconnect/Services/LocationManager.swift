@@ -31,14 +31,13 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         
         // Update the coordinate for Supabase
         self.location = location
-        print("====")
-        print(altitude)
         
         // Send location to db
         Task {
             await SupabaseManager.shared.updateLocation(
                 latitude: location.latitude,
-                longitude: location.longitude
+                longitude: location.longitude,
+                altitude: self.altitude
             )
         }
     }
