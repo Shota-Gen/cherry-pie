@@ -32,23 +32,7 @@ class NearbyNavigationService: NSObject {
     private(set) var status: PeerToPeerStatus = PeerToPeerStatus.Inactive
     
     private var currentUser: UserProfile
-    public var targetUser: UserProfile? = nil {
-        didSet {
-            if let user = targetUser {
-                if let lat = user.lastKnownLat, let lng = user.lastKnownLng {
-                    targetGPS = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-                } else {
-                    targetGPS = nil
-                }
-                targetAltitude = user.altitude
-            } else {
-                targetGPS = nil
-                targetAltitude = 0
-            }
-        }
-    }
-    private(set) var targetGPS: CLLocationCoordinate2D? = nil
-    private(set) var targetAltitude: Double = 0
+    public var targetUser: UserProfile? = nil
     private var foundUsers: [MCPeerID: UserProfile] = [
         // dummy data
         MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
@@ -125,10 +109,6 @@ class NearbyNavigationService: NSObject {
         if CMAltimeter.isRelativeAltitudeAvailable() {
             altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
                 if data != nil {
-                    // TODO: remove time and userid
-                    let time: Double = Date().timeIntervalSince1970
-                    let userid: String = self.currentUser.id.uuidString
-//                    print("\(userid) at \(time): \(data!.altitude)")
                     locationManager?.altitude = data!.altitude
                     self.gps = locationManager?.location
                     self.altitude = data!.altitude
