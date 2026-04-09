@@ -11,6 +11,7 @@ import RealityKit
 import ARKit
 import CoreMotion
 import CoreLocation
+import QuartzCore
 import Auth
 
 enum PeerToPeerStatus {
@@ -112,6 +113,14 @@ class NearbyNavigationService: NSObject {
     /// Last UWB range from `NINearbyObject.distance` (meters), if any.
     private var niDistanceMeters: Float? = nil
     private(set) var gps: CLLocationCoordinate2D? = nil
+    /// Friend position in AR when using GPS — anchored when GPS updates, not re-derived as `camera + offset` every frame (that made distance constant and confused the UI).
+    private var gpsFixedWorldTarget: SIMD3<Float>? = nil
+    private var lastGpsAnchorCoordinate: CLLocationCoordinate2D? = nil
+    /// Rebuild GPS anchor when the user moves this far (meters) so the pin tracks fresh fixes without jumping every frame.
+    private let gpsResnapAfterMetersMoved: CLLocationDistance = 5.0
+    /// Nearby Interaction can deliver dozens of updates per second when phones are close; processing each one on the main thread starves ARKit.
+    private var lastNIProcessMediaTime: CFTimeInterval = 0
+    private let niUpdateMinInterval: CFTimeInterval = 1.0 / 24.0
     
     // peer to peer variables
     public var myPeerId: MCPeerID
@@ -231,10 +240,45 @@ class NearbyNavigationService: NSObject {
         uwbHasDirection = false
         directTargetWorld = nil
         niDistanceMeters = nil
+        clearGpsFixedWorldAnchor()
+        lastNIProcessMediaTime = 0
         target = .zero
         targetDistance = 0.0
         navigationSourceMode = .unavailable
+        // Do not call `arview.session.pause()` here. `deactivate()` runs on NI invalidation and
+        // Multipeer disconnect; pausing AR on those paths leaves the camera stopped until a new
+        // `session.run` (often never if the user stays in the AR UI). Pause only when leaving AR.
+    }
+
+    /// Stops the AR camera for battery / teardown. Call when dismissing AR navigation — not from `measurementReset` / `deactivate()`.
+    func pauseARSession() {
         arview.session.pause()
+    }
+
+    /// Runs world tracking so the navigation camera preview works before UWB connects and after `pauseARSession()`.
+    func runARSessionForNavigationUI() {
+        let arkit_config = navigationARConfiguration()
+        arview.session.run(arkit_config, options: [])
+    }
+
+    private func navigationARConfiguration() -> ARWorldTrackingConfiguration {
+        let arkit_config = ARWorldTrackingConfiguration()
+        arkit_config.planeDetection = [.horizontal]
+        arkit_config.environmentTexturing = .none
+        arkit_config.worldAlignment = .gravityAndHeading
+        return arkit_config
+    }
+    
+    private func clearGpsFixedWorldAnchor() {
+        gpsFixedWorldTarget = nil
+        lastGpsAnchorCoordinate = nil
+    }
+    
+    private func shouldResnapGpsAnchor(for current: CLLocationCoordinate2D) -> Bool {
+        guard let last = lastGpsAnchorCoordinate else { return true }
+        let a = CLLocation(latitude: current.latitude, longitude: current.longitude)
+        let b = CLLocation(latitude: last.latitude, longitude: last.longitude)
+        return a.distance(from: b) >= gpsResnapAfterMetersMoved
     }
     
     private func sendNIDiscoveryToken() {
@@ -263,13 +307,7 @@ class NearbyNavigationService: NSObject {
         }
         status = PeerToPeerStatus.Navigating
         
-        // start ARView
-        let arkit_config = ARWorldTrackingConfiguration()
-
-        arkit_config.planeDetection = [.horizontal, .vertical]
-        arkit_config.environmentTexturing = .automatic
-        arkit_config.worldAlignment = .gravityAndHeading
-        
+        let arkit_config = navigationARConfiguration()
         arview.session.run(
             arkit_config,
             options: [
@@ -280,7 +318,6 @@ class NearbyNavigationService: NSObject {
     }
     
     private func accumulateDatapoints(position: SIMD3<Float>, distance: Float) {
-        print(positionCollected.count)
         // keep number of points strictly <= 5, lazy approach
         // a better clustering algorithm or sampling might be
         // better, but will be really hard and time consuming
@@ -307,10 +344,7 @@ class NearbyNavigationService: NSObject {
             let ab = simd_normalize(position - positionCollected[1])
             let ac = simd_normalize(position - positionCollected[2])
             let abs_dot_prod = abs(simd_dot(ab, ac))
-            print("three")
-            print(abs_dot_prod)
             if abs_dot_prod > (1.0 - DATAPOINT_ANGLE_THRESHOLD) {
-                print(abs_dot_prod)
                 return
             }
         } else if positionCollected.count == 4 {
@@ -320,10 +354,7 @@ class NearbyNavigationService: NSObject {
             let ad = simd_normalize(position - positionCollected[1])
             let ref = simd_cross(ab, ac)
             let abs_dot_prod = abs(simd_dot(ref, ad))
-            print("four")
-            print(abs_dot_prod)
             if abs_dot_prod < DATAPOINT_ANGLE_THRESHOLD {
-                print(abs_dot_prod)
                 return
             }
         }
@@ -359,11 +390,14 @@ class NearbyNavigationService: NSObject {
         }
         
         let At = simd_transpose(A)
-        multilaterationSum += simd_inverse(At * A) * At * y
+        let gram = At * A
+        let invGram = simd_inverse(gram)
+        let delta = invGram * At * y
+        if !delta.x.isFinite || !delta.y.isFinite || !delta.z.isFinite {
+            return
+        }
+        multilaterationSum += delta
         multilaterationCount += 1
-        
-        print("discovered target")
-        print(multilaterationEstimate)
         hasData = true
     }
 }
@@ -372,6 +406,12 @@ extension NearbyNavigationService: NISessionDelegate {
     func session(_ session: NISession, didUpdate nearbyObjects: [NINearbyObject]) {
         // retrieve the distance/direction
         guard let niObject = nearbyObjects.first else { return }
+        let now = CACurrentMediaTime()
+        if now - lastNIProcessMediaTime < niUpdateMinInterval {
+            return
+        }
+        lastNIProcessMediaTime = now
+        
         let distanceOpt: Float? = niObject.distance
         let directionOpt = niObject.direction
         
@@ -391,6 +431,7 @@ extension NearbyNavigationService: NISessionDelegate {
 
         // Priority 1: if UWB direction AND distance available, use direct target.
         if let distance = distanceOpt, let direction = directionOpt {
+            clearGpsFixedWorldAnchor()
             niDistanceMeters = distance
             uwbDirection = direction
             uwbHasDirection = true
@@ -402,6 +443,7 @@ extension NearbyNavigationService: NISessionDelegate {
 
         // Priority 2: if only UWB distance available, use multilateration.
         if let distance = distanceOpt {
+            clearGpsFixedWorldAnchor()
             niDistanceMeters = distance
             uwbDirection = nil
             uwbHasDirection = false
@@ -475,29 +517,47 @@ extension NearbyNavigationService {
         if let direct = directTargetWorld, uwbHasDirection {
             let d = niDistanceMeters ?? 0
             if d > 0 {
+                clearGpsFixedWorldAnchor()
                 return (direct, d, .uwbDirect)
             }
         }
 
-        if multilaterationCount > 0, let d = niDistanceMeters, d > 0 {
+        if multilaterationCount > 0 {
+            clearGpsFixedWorldAnchor()
+            let geom = simd_length(multilaterationEstimate - cameraPosition)
+            let d = (niDistanceMeters ?? 0) > 0 ? (niDistanceMeters ?? 0) : geom
             return (multilaterationEstimate, d, .uwbMultilateration)
         }
 
         // Nearby Interaction is providing range but multilateration has not solved yet — GPS was incorrectly winning here before.
         if status == .Navigating, let d = niDistanceMeters, d > 0, multilaterationCount == 0 {
+            clearGpsFixedWorldAnchor()
             let f = Self.horizontalForward(cameraTransform: cameraTransform)
             let roughTarget = cameraPosition + f * d
             return (roughTarget, d, .uwbCalibrating)
         }
 
+        // During an active NI navigation session, peer lat/lng is usually a stale server snapshot. When UWB drops a few
+        // updates (throttling, orientation, or a nil `distance` frame), falling through to GPS shows bogus range (~100s m)
+        // and bearings like “west” while the friend is actually beside you.
+        if status == .Navigating {
+            clearGpsFixedWorldAnchor()
+            return (cameraPosition, 0.0, .unavailable)
+        }
+
         if let currentGPS = gps, let destGPS = targetGPS {
-            let en = Self.worldOffsetFromGPS(current: currentGPS, target: destGPS)
-            let y = Float(targetAltitude - altitude)
-            // With `gravityAndHeading`, treat +X as East and -Z as North.
-            let worldTarget = cameraPosition + SIMD3<Float>(Float(en.eastMeters), y, Float(-en.northMeters))
-            let planar = hypot(en.eastMeters, en.northMeters)
-            let distance = Float(hypot(planar, Double(y)))
-            return (worldTarget, distance, .gps)
+            if gpsFixedWorldTarget == nil || shouldResnapGpsAnchor(for: currentGPS) {
+                let en = Self.worldOffsetFromGPS(current: currentGPS, target: destGPS)
+                let y = Float(targetAltitude - altitude)
+                // With `gravityAndHeading`, treat +X as East and -Z as North. Snap once per anchor, not every frame from camera (that pinned distance).
+                gpsFixedWorldTarget = cameraPosition + SIMD3<Float>(Float(en.eastMeters), y, Float(-en.northMeters))
+                lastGpsAnchorCoordinate = currentGPS
+            }
+            guard let fixed = gpsFixedWorldTarget else {
+                return (cameraPosition, 0.0, .unavailable)
+            }
+            let geomDist = simd_length(fixed - cameraPosition)
+            return (fixed, geomDist, .gps)
         }
 
         return (cameraPosition, 0.0, .unavailable)

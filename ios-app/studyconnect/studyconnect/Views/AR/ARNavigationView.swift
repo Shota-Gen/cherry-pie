@@ -60,10 +60,12 @@ struct ARNavigationView: View {
         .onAppear() {
             // TODO: beginSearch
             nearbyNavigation.searchUsers()
+            nearbyNavigation.runARSessionForNavigationUI()
         }
         .onDisappear() {
             // TODO: beginBroadcast
             nearbyNavigation.broadcastUser()
+            nearbyNavigation.pauseARSession()
         }
     }
 
@@ -271,13 +273,19 @@ private struct ARViewContainer: UIViewRepresentable {
                     bearing = atan2(rightDist, forwardDist) * 180 / .pi
                 }
                 
-                // Use MainActor to update bindings from AR calculation loop
-                Task { @MainActor in
-                    // `targetDistance` is updated with `target` via `updateBestTargetEstimate`.
-                    distanceBinding.wrappedValue = nearbyNavigation.targetDistance > 0 ? nearbyNavigation.targetDistance : distance
-                    bearingBinding.wrappedValue = bearing
-                    navigationSourceDebugBinding.wrappedValue = nearbyNavigation.navigationSourceMode.debugLabel
+                // Timer runs on the main thread’s RunLoop — avoid piling up `Task { @MainActor }` work, which can stall the UI when NI is busy.
+                let mode = nearbyNavigation.navigationSourceMode
+                let td = nearbyNavigation.targetDistance
+                let displayDistance: Float
+                switch mode {
+                case .gps:
+                    displayDistance = distance
+                default:
+                    displayDistance = td > 0 ? td : distance
                 }
+                distanceBinding.wrappedValue = displayDistance
+                bearingBinding.wrappedValue = bearing
+                navigationSourceDebugBinding.wrappedValue = mode.debugLabel
             }
         }
         
