@@ -56,9 +56,15 @@ class NearbyNavigationService: NSObject {
     private var targetSum: SIMD3<Float> = .zero
     private var targetMeasurementCount: Float = 0.0
     private(set) var targetDistance: Float = 0.0
+    /// When true, returns a fixed test position 3m ahead instead of real data.
+    var useTestTarget = true
     var target: SIMD3<Float> {
         get {
-            return targetMeasurementCount > 0 ? targetSum / targetMeasurementCount : SIMD3<Float>(0.0, 0.0, 0.0)
+            // Test target: 3 meters in front of origin (negative Z is forward in ARKit)
+            if useTestTarget && targetMeasurementCount == 0 {
+                return SIMD3<Float>(0.0, 0.0, -3.0)
+            }
+            return targetMeasurementCount > 0 ? targetSum / targetMeasurementCount : SIMD3<Float>(0.0, 0.0, -3.0)
         }
     }
     private(set) var gps: CLLocationCoordinate2D? = nil
