@@ -15,9 +15,8 @@ struct ARNavigationSelectFriendView: View {
 
     // TODO: potentially delete? we are discovering nearby users not friends
     @State private var friends: [UserProfile] = [
-        // dummy data
-//        UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
-//        UserProfile(userId: UUID(), displayName: "Bob Smith",      email: "bob@umich.edu",   studySpot: "Library",             distanceMiles: 0.5)
+        // Test user for AR development — remove before release
+        UserProfile(userId: UUID(), displayName: "Test User", email: "test@umich.edu", studySpot: "Nearby", distanceMiles: 0.002)
     ]
     @State private var service = FriendsService()
     @State private var selectedFriendID: UUID? = nil
@@ -122,9 +121,11 @@ struct ARNavigationSelectFriendView: View {
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
-            if friends.isEmpty {
-                Task {
-                    friends = await service.getFriendsInSameStudySpot()
+            // Keep test user; also load real friends
+            Task {
+                let real = await service.getFriendsInSameStudySpot()
+                if !real.isEmpty {
+                    friends = real
                 }
             }
         }

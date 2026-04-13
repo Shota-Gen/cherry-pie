@@ -55,23 +55,7 @@ class NearbyNavigationService: NSObject {
     private(set) var status: PeerToPeerStatus = PeerToPeerStatus.Inactive
     
     private var currentUser: UserProfile
-    public var targetUser: UserProfile? = nil {
-        didSet {
-            if let user = targetUser {
-                if let lat = user.lastKnownLat, let lng = user.lastKnownLng {
-                    targetGPS = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-                } else {
-                    targetGPS = nil
-                }
-                targetAltitude = user.altitude
-            } else {
-                targetGPS = nil
-                targetAltitude = 0
-            }
-        }
-    }
-    private(set) var targetGPS: CLLocationCoordinate2D? = nil
-    private(set) var targetAltitude: Double = 0
+    public var targetUser: UserProfile? = nil
     private var foundUsers: [MCPeerID: UserProfile] = [
         // dummy data
         MCPeerID(displayName: "aaaa"): UserProfile(userId: UUID(), displayName: "Alice Johnson",  email: "alice@umich.edu", studySpot: "Engineering Building", distanceMiles: 0.2),
@@ -113,6 +97,11 @@ class NearbyNavigationService: NSObject {
     /// Last UWB range from `NINearbyObject.distance` (meters), if any.
     private var niDistanceMeters: Float? = nil
     private(set) var gps: CLLocationCoordinate2D? = nil
+    private var targetGPS: CLLocationCoordinate2D? {
+        guard let lat = targetUser?.lastKnownLat, let lng = targetUser?.lastKnownLng else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
+    private var targetAltitude: Double { targetUser?.altitude ?? 0 }
     /// Friend position in AR when using GPS — anchored when GPS updates, not re-derived as `camera + offset` every frame (that made distance constant and confused the UI).
     private var gpsFixedWorldTarget: SIMD3<Float>? = nil
     private var lastGpsAnchorCoordinate: CLLocationCoordinate2D? = nil
@@ -168,10 +157,6 @@ class NearbyNavigationService: NSObject {
         if CMAltimeter.isRelativeAltitudeAvailable() {
             altimeter.startAbsoluteAltitudeUpdates(to: .main, withHandler: { data, error in
                 if data != nil {
-                    // TODO: remove time and userid
-                    let time: Double = Date().timeIntervalSince1970
-                    let userid: String = self.currentUser.id.uuidString
-//                    print("\(userid) at \(time): \(data!.altitude)")
                     locationManager?.altitude = data!.altitude
                     self.gps = locationManager?.location
                     self.altitude = data!.altitude

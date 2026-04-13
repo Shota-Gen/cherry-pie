@@ -7,38 +7,46 @@ struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
     let friend: UserProfile
     @Binding var nearbyNavigation: NearbyNavigationService!
-    @State private var distanceToTarget: Float = 5.0
+    @State private var distanceToTarget: Float = 0
+    @State private var isTargetOnScreen = true
     /// Signed angle (degrees) in the camera’s horizontal plane from look direction toward the target — use alone for overlay rotation (do not mix with world heading).
     @State private var bearingToTarget: Float = 0
     /// Mirrored from `nearbyNavigation` on each AR frame so SwiftUI reliably redraws (service updates alone do not always refresh through `@Binding`).
     @State private var navigationSourceDebug: String = NavigationSourceMode.unavailable.debugLabel
 
     var body: some View {
-        // ZStack required for layering AR content with overlaid UI elements (compass arrow, top bar, target card)
+        // ZStack required: layering AR camera feed with minimal HUD overlay
         ZStack {
             Color.black
                 .ignoresSafeArea(edges: .all)
 
-            ARViewContainer(
+            ARBeaconViewContainer(
                 friend: friend,
+                nearbyNavigation: $nearbyNavigation,
                 distanceToTarget: $distanceToTarget,
+                isTargetOnScreen: $isTargetOnScreen,
                 bearingToTarget: $bearingToTarget,
-                navigationSourceDebug: $navigationSourceDebug,
-                nearbyNavigation: $nearbyNavigation
+                navigationSourceDebug: $navigationSourceDebug
             )
-                .ignoresSafeArea(edges: .all)
+            .ignoresSafeArea(edges: .all)
 
             // Direction arrow — rotation is camera-relative azimuth only (matches the live camera feed).
             compassArrow(cameraRelativeAzimuthDegrees: bearingToTarget)
 
-            VStack(spacing: 0) {
+            VStack {
                 topBar
                     .padding(.top, 6)
+                    .padding(.horizontal, 12)
 
                 Spacer()
 
-                targetCard
-                    .padding(.bottom, 60)
+                if !isTargetOnScreen {
+                    offScreenIndicator
+                        .padding(.bottom, 40)
+                }
+
+                bottomDistancePill
+                    .padding(.bottom, 30)
             }
 
             // Debug on top so the target card / chrome never occludes it; value driven by @State from the AR timer.
@@ -57,13 +65,11 @@ struct ARNavigationView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .allowsHitTesting(false)
         }
-        .onAppear() {
-            // TODO: beginSearch
+        .onAppear {
             nearbyNavigation.searchUsers()
             nearbyNavigation.runARSessionForNavigationUI()
         }
-        .onDisappear() {
-            // TODO: beginBroadcast
+        .onDisappear {
             nearbyNavigation.broadcastUser()
             nearbyNavigation.pauseARSession()
         }
@@ -88,189 +94,238 @@ struct ARNavigationView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "location.north.fill")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.white)
-                .frame(width: 38, height: 38)
-                .background(Color.white.opacity(0.12))
-                .clipShape(Circle())
+        HStack(spacing: 10) {
+            AvatarView(name: friend.displayTitle, imageURL: friend.profileImage, size: 32)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("NAVIGATING TO")
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Navigating to")
                     .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white.opacity(0.8))
-                    .textCase(.uppercase)
-
+                    .foregroundColor(.white.opacity(0.7))
                 Text(friend.displayTitle)
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
             }
 
             Spacer()
 
-            Text("\(String(format: "%.2f", distanceToTarget))m")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(Color(red: 0.22, green: 0.61, blue: 0.99))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(Color.white.opacity(0.12))
-                .cornerRadius(18)
-
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 38, height: 38)
-                    .background(Color.white.opacity(0.12))
+                    .frame(width: 32, height: 32)
+                    .background(Color.white.opacity(0.15))
                     .clipShape(Circle())
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(
-            Color.black.opacity(0.78)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            Color.black.opacity(0.6)
+                .clipShape(Capsule())
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 10)
     }
 
-    private var targetCard: some View {
-        VStack(spacing: 10) {
-            Text("TARGET")
-                .font(.caption2)
-                .fontWeight(.bold)
-                .foregroundColor(.white.opacity(0.85))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.6))
-                .cornerRadius(12)
+    // MARK: - Off-screen arrow indicator
 
-            AvatarView(name: friend.displayTitle, imageURL: friend.profileImage, size: 72)
-                .frame(width: 72, height: 72)
-                .background(
-                    Circle()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 90, height: 90)
-                )
+    private var offScreenIndicator: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "arrow.up")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(.white)
+                .rotationEffect(.degrees(0)) // TODO: rotate toward target bearing
+            Text("Look around to find \(friend.displayTitle)")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .background(Color.black.opacity(0.5).clipShape(Capsule()))
+    }
 
-            Text(friend.displayTitle)
-                .font(.title3)
+    // MARK: - Bottom distance pill
+
+    private var bottomDistancePill: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(proximityColor)
+                .frame(width: 8, height: 8)
+
+            Text(formattedDistance)
+                .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(.white)
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 8, height: 8)
-                Text("Here now")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.9))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Color.black.opacity(0.35))
-            .cornerRadius(20)
         }
-        .padding(22)
-        .background(
-            BlurView(style: .systemThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.4), radius: 20, x: 0, y: 12)
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.black.opacity(0.6).clipShape(Capsule()))
+    }
+
+    private var formattedDistance: String {
+        if distanceToTarget < 1 {
+            return String(format: "%.0f cm away", distanceToTarget * 100)
+        }
+        return String(format: "%.1f m away", distanceToTarget)
+    }
+
+    private var proximityColor: Color {
+        if distanceToTarget < 2 { return .green }
+        if distanceToTarget < 7 { return .yellow }
+        return .orange
     }
 }
 
-private struct ARViewContainer: UIViewRepresentable {
+// MARK: - AR View Container (RealityKit + beacon entity)
+
+private struct ARBeaconViewContainer: UIViewRepresentable {
     let friend: UserProfile
+    @Binding var nearbyNavigation: NearbyNavigationService!
     @Binding var distanceToTarget: Float
+    @Binding var isTargetOnScreen: Bool
     @Binding var bearingToTarget: Float
     @Binding var navigationSourceDebug: String
-    @Binding var nearbyNavigation: NearbyNavigationService!
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(friendName: friend.displayTitle, profileImage: friend.profileImage)
     }
 
     func makeUIView(context: Context) -> ARView {
-//        let arView = ARView(frame: .zero)
-//        
-////         Configure R with heading alignment
-//        let config = ARWorldTrackingConfiguration()
-//        config.worldAlignment = .gravityAndHeading
-//        arView.session.run(config)
-        
-//         Set up location tracking through periodic updates
+        let arView = nearbyNavigation.arview
         let coordinator = context.coordinator
-        coordinator.trackingUpdates(
+        coordinator.setupBeacon(in: arView)
+        coordinator.startTracking(
+            arView: arView,
             nearbyNavigation: nearbyNavigation,
-            view: nearbyNavigation.arview,
             distanceBinding: $distanceToTarget,
+            isOnScreenBinding: $isTargetOnScreen,
             bearingBinding: $bearingToTarget,
             navigationSourceDebugBinding: $navigationSourceDebug
         )
-        
-        return nearbyNavigation.arview
+        return arView
     }
 
     func updateUIView(_ uiView: ARView, context: Context) {}
 
+    // MARK: - Coordinator
+
     class Coordinator {
+        private let friendName: String
+        private let profileImage: String
+        private var beaconAnchor: AnchorEntity?
+        private var beaconEntity: ModelEntity?
+        private var ringEntity: ModelEntity?
         private var timer: Timer?
-        
-        func trackingUpdates(
+        private var pulsePhase: Float = 0
+
+        init(friendName: String, profileImage: String) {
+            self.friendName = friendName
+            self.profileImage = profileImage
+        }
+
+        func setupBeacon(in arView: ARView) {
+            let anchor = AnchorEntity(world: .zero)
+
+            // Main beacon sphere — rendered as "purgatory" object
+            // Uses UnlitMaterial so it glows and is always visible
+            let beaconMesh = MeshResource.generateSphere(radius: 0.12)
+            var beaconMaterial = UnlitMaterial()
+            beaconMaterial.color = .init(tint: beaconColor.withAlphaComponent(0.9))
+            let beacon = ModelEntity(mesh: beaconMesh, materials: [beaconMaterial])
+
+            // Outer pulsing ring
+            let ringMesh = MeshResource.generateSphere(radius: 0.18)
+            var ringMaterial = UnlitMaterial()
+            ringMaterial.color = .init(tint: beaconColor.withAlphaComponent(0.25))
+            let ring = ModelEntity(mesh: ringMesh, materials: [ringMaterial])
+
+            anchor.addChild(beacon)
+            anchor.addChild(ring)
+            arView.scene.addAnchor(anchor)
+
+            self.beaconAnchor = anchor
+            self.beaconEntity = beacon
+            self.ringEntity = ring
+        }
+
+        func startTracking(
+            arView: ARView,
             nearbyNavigation: NearbyNavigationService,
-            view: ARView,
             distanceBinding: Binding<Float>,
+            isOnScreenBinding: Binding<Bool>,
             bearingBinding: Binding<Float>,
             navigationSourceDebugBinding: Binding<String>
         ) {
-            // Target position in world space
-//            let targetWorldPosition: SIMD3<Float> = nearbyNavigation.target
-            
-            timer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { _ in
-                // print("======")
-                // print("User GPS: \(String(describing: nearbyNavigation.gps))")
-                // print("User Altitude: \(nearbyNavigation.altitude)")
-                // print("Target GPS: lat=\(String(describing: nearbyNavigation.targetUser?.lastKnownLat)), lng=\(String(describing: nearbyNavigation.targetUser?.lastKnownLng))")
-                // print("Target Altitude: \(nearbyNavigation.targetUser?.altitude ?? 0)")
-                guard let frame = view.session.currentFrame else { return }
+            // ~30 fps update loop
+            timer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                guard let frame = arView.session.currentFrame else { return }
                 nearbyNavigation.updateBestTargetEstimate(cameraTransform: frame.camera.transform)
-                let targetWorldPosition = nearbyNavigation.target
-                
-                let cameraTransform = frame.camera.transform
-                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
-                
-                // Calculate distance
-                let deltaVector = targetWorldPosition - cameraPosition
-                let distance = simd_length(deltaVector)
-                
+                let targetWorldPos = nearbyNavigation.target
+
+                // Update beacon position with smoothing
+                if let anchor = self.beaconAnchor {
+                    let currentPos = anchor.position
+                    let smoothed = currentPos + (targetWorldPos - currentPos) * 0.15
+                    anchor.position = smoothed
+                }
+
+                // Compute distance from camera to target
+                let camTransform = frame.camera.transform
+                let camPos = SIMD3<Float>(
+                    camTransform.columns.3.x,
+                    camTransform.columns.3.y,
+                    camTransform.columns.3.z
+                )
+                let distance = simd_length(targetWorldPos - camPos)
+
+                // Scale beacon: larger when far, smaller when close (min 0.5, max 2.0)
+                let scaleFactor = max(0.5, min(2.0, distance / 5.0))
+
+                // Pulse effect — frequency increases as user gets closer
+                let pulseSpeed: Float = max(1.0, 6.0 - distance)
+                self.pulsePhase += 0.033 * pulseSpeed
+                let pulseSin = (sin(self.pulsePhase) + 1.0) / 2.0 // 0..1
+                let ringScale = scaleFactor * (1.0 + pulseSin * 0.5)
+
+                self.beaconEntity?.scale = SIMD3<Float>(repeating: scaleFactor)
+                self.ringEntity?.scale = SIMD3<Float>(repeating: ringScale)
+
+                // Update ring opacity via material
+                let ringAlpha = 0.1 + pulseSin * 0.25
+                var ringMat = UnlitMaterial()
+                ringMat.color = .init(tint: self.beaconColor.withAlphaComponent(CGFloat(ringAlpha)))
+                self.ringEntity?.model?.materials = [ringMat]
+
+                // Beacon color intensifies when closer
+                let beaconAlpha: CGFloat = distance < 3.0 ? 1.0 : 0.8
+                var beaconMat = UnlitMaterial()
+                beaconMat.color = .init(tint: self.beaconColor.withAlphaComponent(beaconAlpha))
+                self.beaconEntity?.model?.materials = [beaconMat]
+
+                // Check if target is on screen
+                let projected = frame.camera.projectPoint(
+                    targetWorldPos,
+                    orientation: .portrait,
+                    viewportSize: CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                )
+                let screenBounds = UIScreen.main.bounds
+                let onScreen = screenBounds.contains(CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y)))
+
                 // Camera-relative azimuth: angle in the horizontal plane (perpendicular to camera up) from look direction toward the target.
-                let forward = simd_normalize(SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z))
-                let right = simd_normalize(SIMD3<Float>(cameraTransform.columns.0.x, cameraTransform.columns.0.y, cameraTransform.columns.0.z))
-                let up = simd_normalize(SIMD3<Float>(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z))
+                let deltaVector = targetWorldPos - camPos
+                let forward = simd_normalize(SIMD3<Float>(-camTransform.columns.2.x, -camTransform.columns.2.y, -camTransform.columns.2.z))
+                let right = simd_normalize(SIMD3<Float>(camTransform.columns.0.x, camTransform.columns.0.y, camTransform.columns.0.z))
+                let up = simd_normalize(SIMD3<Float>(camTransform.columns.1.x, camTransform.columns.1.y, camTransform.columns.1.z))
                 let deltaHorizontal = deltaVector - up * simd_dot(deltaVector, up)
                 let forwardDist = simd_dot(deltaHorizontal, forward)
                 let rightDist = simd_dot(deltaHorizontal, right)
-                let bearing: Float
+                let bearingDegrees: Float
                 if simd_length_squared(deltaHorizontal) < 1e-8 {
-                    bearing = 0
+                    bearingDegrees = 0
                 } else {
-                    bearing = atan2(rightDist, forwardDist) * 180 / .pi
+                    bearingDegrees = atan2(rightDist, forwardDist) * 180 / .pi
                 }
                 
                 // Timer runs on the main thread’s RunLoop — avoid piling up `Task { @MainActor }` work, which can stall the UI when NI is busy.
@@ -284,27 +339,31 @@ private struct ARViewContainer: UIViewRepresentable {
                     displayDistance = td > 0 ? td : distance
                 }
                 distanceBinding.wrappedValue = displayDistance
-                bearingBinding.wrappedValue = bearing
+                bearingBinding.wrappedValue = bearingDegrees
                 navigationSourceDebugBinding.wrappedValue = mode.debugLabel
+                isOnScreenBinding.wrappedValue = onScreen
             }
         }
-        
+
+        /// Deterministic color from friend name (matches AvatarView palette).
+        private var beaconColor: UIColor {
+            let palette: [(CGFloat, CGFloat, CGFloat)] = [
+                (0.33, 0.53, 0.89),
+                (0.30, 0.69, 0.56),
+                (0.82, 0.45, 0.32),
+                (0.60, 0.40, 0.80),
+                (0.88, 0.65, 0.23),
+                (0.35, 0.65, 0.35),
+                (0.75, 0.35, 0.55),
+                (0.40, 0.60, 0.75),
+            ]
+            let hash = abs(friendName.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) })
+            let c = palette[hash % palette.count]
+            return UIColor(red: c.0, green: c.1, blue: c.2, alpha: 1.0)
+        }
+
         deinit {
             timer?.invalidate()
         }
-    }
-}
-
-
-// MARK: - Helper Views
-private struct BlurView: UIViewRepresentable {
-    let style: UIBlurEffect.Style
-
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        UIVisualEffectView(effect: UIBlurEffect(style: style))
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
-        uiView.effect = UIBlurEffect(style: style)
     }
 }
