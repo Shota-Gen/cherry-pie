@@ -13,11 +13,7 @@ struct ARNavigationSelectFriendView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    // TODO: potentially delete? we are discovering nearby users not friends
-    @State private var friends: [UserProfile] = [
-        // Test user for AR development — remove before release
-        UserProfile(userId: UUID(), displayName: "Test User", email: "test@umich.edu", studySpot: "Nearby", distanceMiles: 0.002)
-    ]
+    @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
     @State private var selectedFriendID: UUID? = nil
     @State private var navigateToAR = false
@@ -121,13 +117,13 @@ struct ARNavigationSelectFriendView: View {
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
-            // Keep test user; also load real friends
             Task {
                 let real = await service.getFriendsInSameStudySpot()
                 print(real)
                 if !real.isEmpty {
                     friends = real
                 }
+                friends = await service.getFriendsInSameStudySpot()
             }
         }
         .onDisappear() {

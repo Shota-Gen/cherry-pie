@@ -65,6 +65,7 @@ struct FriendsView: View {
                                             Task {
                                                 await friendRequestService.acceptRequest(fromUserId: request.userId)
                                                 incomingRequests.removeAll { $0.id == request.id }
+                                                friends = await service.getFriendsList()
                                             }
                                         },
                                         onDecline: {
