@@ -460,6 +460,7 @@
 				INFOPLIST_FILE = studyconnect/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "camera is needed";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "local network is needed";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "StudyConnect uses your location in the background to keep your study spot updated for friends.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "The app uses your location to show you on the app and find friends.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "motion usage is needed";
 				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "nearby interaction is needed";
@@ -500,6 +501,7 @@
 				INFOPLIST_FILE = studyconnect/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "camera is needed";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "local network is needed";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "StudyConnect uses your location in the background to keep your study spot updated for friends.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "The app uses your location to show you on the app and find friends.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "motion usage is needed";
 				INFOPLIST_KEY_NSNearbyInteractionUsageDescription = "nearby interaction is needed";

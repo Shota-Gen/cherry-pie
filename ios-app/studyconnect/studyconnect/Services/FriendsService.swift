@@ -145,6 +145,7 @@ class FriendsService {
                     userId: id,
                     displayName: displayName,
                     email: "",
+                    studySpot: row["study_spot"] as? String ?? "Unknown",
                     lastKnownLat: row["last_known_lat"] as? Double,
                     lastKnownLng: row["last_known_lng"] as? Double,
                     altitude: row["altitude"] as? Double ?? 0

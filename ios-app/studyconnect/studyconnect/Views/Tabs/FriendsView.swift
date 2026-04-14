@@ -176,23 +176,23 @@ struct FriendsView: View {
                     FindAvailabilityView(config: config, path: $path)
                 }
             }
+            .overlay {
+                if showAcceptedModal, let invite = acceptedInvite {
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            withAnimation { showAcceptedModal = false }
+                        }
 
-            // Custom Modal Overlay
-            if showAcceptedModal, let invite = acceptedInvite {
-                Color.black.opacity(0.2)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .onTapGesture {
-                        withAnimation { showAcceptedModal = false }
-                    }
-
-                SessionAcceptedModal(
-                    isPresented: $showAcceptedModal,
-                    invitingUser: invite.fromUser,
-                    sessionDate: invite.startTime
-                )
-                .transition(.scale(scale: 0.8).combined(with: .opacity))
-                .zIndex(1)
+                    SessionAcceptedModal(
+                        isPresented: $showAcceptedModal,
+                        invitingUser: invite.fromUser,
+                        sessionDate: invite.startTime
+                    )
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    .zIndex(1)
+                }
             }
         }
     }

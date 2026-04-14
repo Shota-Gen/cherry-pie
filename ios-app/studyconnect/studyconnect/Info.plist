@@ -22,5 +22,10 @@
 		<string>_studyConn._tcp</string>
 		<string>_studyConn._udp</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>nearby-interaction</string>
+		<string>location</string>
+	</array>
 </dict>
 </plist>
