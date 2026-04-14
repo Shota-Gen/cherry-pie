@@ -54,8 +54,7 @@ class ProfileService {
             "display_name": AnyEncodable(profile.displayName),
             "major": AnyEncodable(profile.major),
             "university_year": AnyEncodable(profile.universityYear),
-            "profile_image": AnyEncodable(profile.profileImage),
-            "study_spot": AnyEncodable(profile.studySpot)
+            "profile_image": AnyEncodable(profile.profileImage)
         ]
 
         try await client

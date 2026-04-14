@@ -10,7 +10,7 @@ internal import PostgREST
 class FriendRequestService {
 
     /// Sends a friend request by inserting a row into `friends`.
-    /// Sender's `user_status` = accepted, receiver's `friend_status` = pending.
+    /// Single row with status='pending'. Receiver must accept.
     func sendRequest(toFriendId: UUID) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         let client = SupabaseManager.shared.client
@@ -23,8 +23,7 @@ class FriendRequestService {
                 .insert([
                     "user_id": myId,
                     "friend_id": friendId,
-                    "user_status": "accepted",
-                    "friend_status": "pending"
+                    "status": "pending"
                 ])
                 .execute()
             print("✅ Friend request sent to \(friendId)")
@@ -34,7 +33,7 @@ class FriendRequestService {
     }
 
     /// Fetches incoming friend requests where the current user is `friend_id`
-    /// and `friend_status` is still pending.
+    /// and `status` is still pending.
     func getIncomingRequests() async -> [FriendRequest] {
         guard let userId = SupabaseManager.shared.session?.user.id else { return [] }
         let client = SupabaseManager.shared.client
@@ -46,7 +45,7 @@ class FriendRequestService {
                 .from("friends")
                 .select()
                 .eq("friend_id", value: myId)
-                .eq("friend_status", value: "pending")
+                .eq("status", value: "pending")
                 .execute()
 
             let rows = (try? JSONSerialization.jsonObject(with: result.data) as? [[String: Any]]) ?? []
@@ -76,8 +75,7 @@ class FriendRequestService {
             return rows.compactMap { row -> FriendRequest? in
                 guard let uid = row["user_id"] as? String,
                       let fid = row["friend_id"] as? String,
-                      let uStatus = row["user_status"] as? String,
-                      let fStatus = row["friend_status"] as? String,
+                      let statusStr = row["status"] as? String,
                       let createdStr = row["created_at"] as? String,
                       let userId = UUID(uuidString: uid),
                       let friendId = UUID(uuidString: fid),
@@ -86,8 +84,7 @@ class FriendRequestService {
                 var request = FriendRequest(
                     userId: userId,
                     friendId: friendId,
-                    userStatus: FriendRequest.Status(rawValue: uStatus) ?? .pending,
-                    friendStatus: FriendRequest.Status(rawValue: fStatus) ?? .pending,
+                    status: FriendRequest.Status(rawValue: statusStr) ?? .pending,
                     createdAt: createdAt
                 )
                 request.fromUser = profileMap[uid]
@@ -99,8 +96,8 @@ class FriendRequestService {
         }
     }
 
-    /// Accepts a friend request: sets `friend_status` to accepted.
-    /// The row already has `user_status` = accepted, so both sides are now friends.
+    /// Accepts a friend request: updates the sender's row to 'accepted' and
+    /// inserts the reverse row (me → sender, 'accepted') so both users see each other.
     func acceptRequest(fromUserId: UUID) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         let client = SupabaseManager.shared.client
@@ -108,12 +105,22 @@ class FriendRequestService {
         let senderId = fromUserId.uuidString.lowercased()
 
         do {
+            // 1. Update the sender's pending row to accepted
             try await client
                 .from("friends")
-                .update(["friend_status": "accepted"])
+                .update(["status": "accepted"])
                 .eq("user_id", value: senderId)
                 .eq("friend_id", value: myId)
                 .execute()
+
+            // 2. Insert the reverse row (me → sender) as accepted
+            try await client
+                .from("friends")
+                .upsert([
+                    ["user_id": myId, "friend_id": senderId, "status": "accepted"]
+                ])
+                .execute()
+
             print("✅ Accepted friend request from \(senderId)")
         } catch {
             print("❌ Failed to accept friend request: \(error.localizedDescription)")

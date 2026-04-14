@@ -118,11 +118,6 @@ struct ARNavigationSelectFriendView: View {
         .navigationBarHidden(true)
         .onAppear {
             Task {
-                let real = await service.getFriendsInSameStudySpot()
-                print(real)
-                if !real.isEmpty {
-                    friends = real
-                }
                 friends = await service.getFriendsInSameStudySpot()
             }
         }

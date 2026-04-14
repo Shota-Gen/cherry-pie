@@ -6,9 +6,8 @@
 import Foundation
 
 /// Represents a friend request / friendship row from the `friends` table.
-/// A single row has `user_id` (sender) and `friend_id` (receiver).
-/// `user_status` is auto-set to "accepted" for the sender.
-/// `friend_status` starts as "pending" for the receiver.
+/// Dual-entry model: each accepted friendship has two rows (A→B + B→A).
+/// A pending request has a single row (sender→receiver, status='pending').
 struct FriendRequest: Identifiable, Codable, Hashable {
     enum Status: String, Codable, Hashable {
         case pending, accepted
@@ -16,8 +15,7 @@ struct FriendRequest: Identifiable, Codable, Hashable {
 
     let userId: UUID
     let friendId: UUID
-    let userStatus: Status
-    let friendStatus: Status
+    let status: Status
     let createdAt: Date
 
     // The row is identified by the composite key; use a combined id for SwiftUI.

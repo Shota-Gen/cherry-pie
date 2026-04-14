@@ -12,36 +12,22 @@ internal import PostgREST
 
 class FriendsService {
 
-    // Fetch friends list from Supabase
+    // Fetch friends list from Supabase (dual-entry model: only check user_id = me)
     func getFriendsList() async -> [UserProfile] {
         guard let userId = SupabaseManager.shared.session?.user.id else { return [] }
         let client = SupabaseManager.shared.client
         let myId = userId.uuidString.lowercased()
         
         do {
-            // 1a. Rows where I'm user_id (I sent the request, both accepted)
-            let sentResult = try await client
+            // Single-direction query: rows where I'm user_id and status is accepted
+            let result = try await client
                 .from("friends")
                 .select()
                 .eq("user_id", value: myId)
-                .eq("user_status", value: "accepted")
-                .eq("friend_status", value: "accepted")
+                .eq("status", value: "accepted")
                 .execute()
-            let sentRows = (try? JSONSerialization.jsonObject(with: sentResult.data) as? [[String: Any]]) ?? []
-            let sentFriendIds = sentRows.compactMap { $0["friend_id"] as? String }
-
-            // 1b. Rows where I'm friend_id (I received the request, both accepted)
-            let recvResult = try await client
-                .from("friends")
-                .select()
-                .eq("friend_id", value: myId)
-                .eq("user_status", value: "accepted")
-                .eq("friend_status", value: "accepted")
-                .execute()
-            let recvRows = (try? JSONSerialization.jsonObject(with: recvResult.data) as? [[String: Any]]) ?? []
-            let recvFriendIds = recvRows.compactMap { $0["user_id"] as? String }
-
-            let allFriendIds = Array(Set(sentFriendIds + recvFriendIds))
+            let rows = (try? JSONSerialization.jsonObject(with: result.data) as? [[String: Any]]) ?? []
+            let allFriendIds = rows.compactMap { $0["friend_id"] as? String }
             guard !allFriendIds.isEmpty else { return [] }
             
             // 2. Fetch friend profiles from the users table
@@ -80,7 +66,7 @@ class FriendsService {
         }
     }
 
-    // Add a friend by sending a friend request
+    // Add a friend by sending a friend request (single pending row)
     func addFriend(id: String) async {
         guard let userId = SupabaseManager.shared.session?.user.id else { return }
         let client = SupabaseManager.shared.client
@@ -88,12 +74,11 @@ class FriendsService {
         let friendId = id.lowercased()
         
         do {
-            // Insert a friend request: sender is auto-accepted, receiver is pending
+            // Insert a pending friend request (single row, receiver must accept)
             try await client
                 .from("friends")
                 .upsert([
-                    ["user_id": myId, "friend_id": friendId,
-                     "user_status": "accepted", "friend_status": "pending"]
+                    ["user_id": myId, "friend_id": friendId, "status": "pending"]
                 ])
                 .execute()
             print("✅ Friend request sent to: \(id)")
