@@ -124,6 +124,7 @@ struct ARNavigationSelectFriendView: View {
             // Keep test user; also load real friends
             Task {
                 let real = await service.getFriendsInSameStudySpot()
+                print(real)
                 if !real.isEmpty {
                     friends = real
                 }

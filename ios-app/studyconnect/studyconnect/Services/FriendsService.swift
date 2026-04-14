@@ -135,6 +135,7 @@ class FriendsService {
             let result = try await client
                 .rpc("get_friends_in_same_study_spot", params: ["current_user_id": userId])
                 .execute()
+            print(result.data)
             let rows = (try? JSONSerialization.jsonObject(with: result.data) as? [[String: Any]]) ?? []
 
             return rows.compactMap { row -> UserProfile? in

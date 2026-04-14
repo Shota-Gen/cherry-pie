@@ -262,7 +262,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
                 guard let self else { return }
                 guard let frame = arView.session.currentFrame else { return }
                 nearbyNavigation.updateBestTargetEstimate(cameraTransform: frame.camera.transform)
-                let targetWorldPos = nearbyNavigation.target
+                let targetWorldPos = nearbyNavigation.resolvedTargetPosition()
 
                 // Update beacon position with smoothing
                 if let anchor = self.beaconAnchor {

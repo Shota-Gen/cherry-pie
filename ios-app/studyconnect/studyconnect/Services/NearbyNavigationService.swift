@@ -458,6 +458,34 @@ extension NearbyNavigationService {
         navigationSourceMode = resolved.mode
     }
 
+    /// Returns `target` when it is a valid (non-zero) position, otherwise
+    /// computes the friend's AR-world position from GPS coordinates and the
+    /// current ARView camera orientation.
+    public func resolvedTargetPosition() -> SIMD3<Float> {
+        // Use the existing target if it has been resolved to a non-zero position.
+        if simd_length_squared(target) > 1e-8 {
+            return target
+        }
+
+        // Fall back to a GPS-derived position using the ARView's current frame.
+        guard let frame = arview.session.currentFrame else { return .zero }
+        let cameraTransform = frame.camera.transform
+        let cameraPosition = SIMD3<Float>(
+            cameraTransform.columns.3.x,
+            cameraTransform.columns.3.y,
+            cameraTransform.columns.3.z
+        )
+
+        guard let currentGPS = gps, let destGPS = targetGPS else {
+            return cameraPosition
+        }
+
+        let en = Self.worldOffsetFromGPS(current: currentGPS, target: destGPS)
+        let y: Float = 0//Float(targetAltitude - altitude)
+        // With `gravityAndHeading` world alignment: +X = East, -Z = North.
+        return cameraPosition + SIMD3<Float>(Float(en.eastMeters), y, Float(-en.northMeters))
+    }
+
     static func worldTargetFromUWB(cameraTransform: simd_float4x4, cameraPosition: SIMD3<Float>, direction: SIMD3<Float>, distance: Float) -> SIMD3<Float> {
         let localDir = simd_normalize(direction)
         let worldDir4 = cameraTransform * SIMD4<Float>(localDir.x, localDir.y, localDir.z, 0.0)
