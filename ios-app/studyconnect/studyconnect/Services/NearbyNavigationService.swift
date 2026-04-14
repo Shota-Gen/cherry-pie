@@ -231,11 +231,6 @@ class NearbyNavigationService: NSObject {
         // `session.run` (often never if the user stays in the AR UI). Pause only when leaving AR.
     }
 
-    /// Stops the AR camera for battery / teardown. Call when dismissing AR navigation — not from `measurementReset` / `deactivate()`.
-    func pauseARSession() {
-        arview.session.pause()
-    }
-
     /// Runs world tracking so the navigation camera preview works before UWB connects and after `pauseARSession()`.
     func runARSessionForNavigationUI() {
         let arkit_config = navigationARConfiguration()
