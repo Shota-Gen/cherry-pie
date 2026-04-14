@@ -71,7 +71,6 @@ struct ARNavigationView: View {
         }
         .onDisappear {
             nearbyNavigation.broadcastUser()
-            nearbyNavigation.pauseARSession()
         }
     }
 
