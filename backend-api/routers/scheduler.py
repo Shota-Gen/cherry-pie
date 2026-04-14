@@ -17,7 +17,6 @@ from services.google_calendar import (
 )
 from services.gemini_scheduler import (
     suggest_times,
-    suggest_times_fallback,
     SuggestedSlot,
 )
 
@@ -32,13 +31,17 @@ router = APIRouter(prefix="/scheduler", tags=["scheduler"])
 
 
 class StoreTokenRequest(BaseModel):
-    """Payload for storing a Google OAuth refresh token."""
+    """Payload for storing a Google OAuth token via server auth code exchange."""
     user_id: str = Field(..., description="UUID of the user")
-    refresh_token: str = Field(..., description="Google OAuth refresh token")
+    server_auth_code: str = Field("", description="Google OAuth server auth code (exchanged for refresh token)")
+    refresh_token: str = Field("", description="Google OAuth refresh token (if already exchanged)")
     access_token: str = Field("", description="Current Google access token (optional)")
     google_email: str = Field(..., description="User's Google email address")
     scopes: list[str] = Field(
-        default_factory=lambda: ["https://www.googleapis.com/auth/calendar.freebusy"],
+        default_factory=lambda: [
+            "https://www.googleapis.com/auth/calendar.freebusy",
+            "https://www.googleapis.com/auth/calendar.events",
+        ],
         description="Scopes granted by the user",
     )
 
@@ -70,7 +73,6 @@ class SlotResponse(BaseModel):
     available_user_ids: list[str]
     busy_user_ids: list[str]
     score: float
-    reason: str
 
 
 class SuggestTimesResponse(BaseModel):
@@ -78,7 +80,6 @@ class SuggestTimesResponse(BaseModel):
     slots: list[SlotResponse]
     participants_queried: int
     participants_with_calendar: int
-    used_llm: bool  # True if Gemini was used, False if fallback
 
 
 class ParticipantCalendarStatus(BaseModel):
@@ -89,6 +90,48 @@ class ParticipantCalendarStatus(BaseModel):
 
 class CalendarStatusResponse(BaseModel):
     participants: list[ParticipantCalendarStatus]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _exchange_auth_code_for_tokens(
+    auth_code: str,
+    client_id: str,
+    client_secret: str,
+) -> dict:
+    """
+    Exchange a Google server auth code for access + refresh tokens.
+
+    The iOS app obtains a server auth code via GIDSignIn (with GIDServerClientID
+    set to the Web client ID). We exchange it here using the Web client secret.
+    """
+    import httpx
+
+    resp = httpx.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code": auth_code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "grant_type": "authorization_code",
+            "redirect_uri": "",  # Must be empty for iOS auth codes
+        },
+        timeout=15,
+    )
+
+    if resp.status_code != 200:
+        logger.error("Google token exchange failed: %s %s", resp.status_code, resp.text)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Google token exchange failed: {resp.text}",
+        )
+
+    tokens = resp.json()
+    logger.info("Google token exchange successful (has refresh_token: %s)", "refresh_token" in tokens)
+    return tokens
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +149,9 @@ def store_google_token(payload: StoreTokenRequest, supabase: SupabaseDep):
     Store (or update) a user's Google OAuth refresh token.
 
     Called by the iOS app after the user grants calendar permissions.
-    The token is stored in `external_auth_tokens` for later FreeBusy queries.
+    If a server_auth_code is provided, exchanges it with Google for a
+    refresh token first. The token is stored in `external_auth_tokens`
+    for later FreeBusy queries.
     """
 
     # Verify user exists
@@ -129,12 +174,40 @@ def store_google_token(payload: StoreTokenRequest, supabase: SupabaseDep):
             detail="User not found.",
         )
 
+    # Exchange server auth code for refresh token if provided
+    refresh_token = payload.refresh_token
+    access_token = payload.access_token
+
+    if payload.server_auth_code:
+        google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+        google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+        if not google_client_id or not google_client_secret:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google OAuth client credentials not configured on server.",
+            )
+
+        tokens = _exchange_auth_code_for_tokens(
+            auth_code=payload.server_auth_code,
+            client_id=google_client_id,
+            client_secret=google_client_secret,
+        )
+        refresh_token = tokens.get("refresh_token", refresh_token)
+        access_token = tokens.get("access_token", access_token)
+
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No refresh token obtained. The auth code may have already been used.",
+        )
+
     # Upsert the token row
     token_row = {
         "user_id": payload.user_id,
         "provider": "google",
-        "refresh_token_encrypted": payload.refresh_token,
-        "access_token_encrypted": payload.access_token or "",
+        "refresh_token_encrypted": refresh_token,
+        "access_token_encrypted": access_token or "",
         "google_email": payload.google_email,
         "scopes_granted": payload.scopes,
         "token_expiry": None,
@@ -223,13 +296,12 @@ def suggest_session_times(
     Flow:
       1. Fetch OAuth tokens for all participants from the DB
       2. Query Google Calendar FreeBusy for busy blocks
-      3. Send availability data to Gemini for analysis
+      3. Run deterministic interval analysis to find optimal slots
       4. Return ranked time slot suggestions
 
     Graceful degradation:
       - If a participant hasn't linked their calendar, they're treated as "available"
-      - If Gemini fails, falls back to deterministic scheduling
-      - If no tokens exist at all, uses deterministic scheduling with empty busy blocks
+      - If no tokens exist at all, treats everyone as available
     """
 
     # -- 1. Fetch user details + tokens ----------------------------------------
@@ -334,31 +406,15 @@ def suggest_session_times(
                 "error": None if has_token else "Calendar not linked",
             })
 
-    # -- 3. LLM analysis (with fallback) ----------------------------------------
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    used_llm = False
-    slots: list[SuggestedSlot] = []
+    # -- 3. Deterministic scheduling -------------------------------------------
+    slots = suggest_times(
+        participant_data=participant_data,
+        window_start=payload.window_start,
+        window_end=payload.window_end,
+        duration_minutes=payload.duration_minutes,
+    )
 
-    if gemini_key:
-        try:
-            slots = suggest_times(
-                participant_data=participant_data,
-                window_start=payload.window_start,
-                window_end=payload.window_end,
-                duration_minutes=payload.duration_minutes,
-                api_key=gemini_key,
-            )
-            used_llm = True
-        except Exception as exc:
-            logger.error("Gemini scheduling failed, using fallback: %s", exc)
-
-    if not slots:
-        slots = suggest_times_fallback(
-            participant_data=participant_data,
-            window_start=payload.window_start,
-            window_end=payload.window_end,
-            duration_minutes=payload.duration_minutes,
-        )
+    logger.info("Deterministic scheduler returned %d slots", len(slots))
 
     # -- 4. Build response -------------------------------------------------------
     return SuggestTimesResponse(
@@ -369,11 +425,9 @@ def suggest_session_times(
                 available_user_ids=s.available_user_ids,
                 busy_user_ids=s.busy_user_ids,
                 score=s.score,
-                reason=s.reason,
             )
             for s in slots
         ],
         participants_queried=len(payload.participant_ids),
         participants_with_calendar=participants_with_calendar,
-        used_llm=used_llm,
     )

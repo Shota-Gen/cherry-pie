@@ -2,6 +2,8 @@
 Sessions router — create and manage private study sessions.
 """
 
+import logging
+import os
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
@@ -11,6 +13,9 @@ from pydantic import BaseModel, Field, field_validator
 
 from config import SupabaseDep
 from services.email import send_session_invite_emails
+from services.google_calendar_invite import send_session_calendar_invites
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -252,6 +257,56 @@ def create_private_session(
     except Exception:
         # Email is best-effort — don't fail the request if it errors
         pass
+
+    # -- 5b. Send Google Calendar invites (best-effort) ----------------------
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+    if google_client_id and google_client_secret:
+        try:
+            # Look up the host's stored Google OAuth token
+            host_token_result = (
+                supabase.table("external_auth_tokens")
+                .select("refresh_token_encrypted, google_email, scopes_granted")
+                .eq("user_id", creator_id)
+                .eq("provider", "google")
+                .execute()
+            )
+
+            if host_token_result.data:
+                host_token = host_token_result.data[0]
+                host_email = host_token.get("google_email", "")
+                scopes = host_token.get("scopes_granted") or []
+
+                # Only proceed if the host granted calendar.events scope
+                has_events_scope = any(
+                    "calendar.events" in s for s in scopes
+                )
+
+                if host_email and has_events_scope:
+                    invitee_emails = [
+                        u["email"] for u in invitee_users if u.get("email")
+                    ]
+                    if invitee_emails:
+                        send_session_calendar_invites(
+                            session_title=payload.title,
+                            session_description=payload.description,
+                            session_start=payload.starts_at,
+                            session_end=payload.ends_at,
+                            host_token=host_token,
+                            host_email=host_email,
+                            invitee_emails=invitee_emails,
+                            client_id=google_client_id,
+                            client_secret=google_client_secret,
+                        )
+                else:
+                    logger.info(
+                        "Skipping GCal invite — host %s missing events scope or email",
+                        creator_id,
+                    )
+        except Exception as exc:
+            # Calendar invite is best-effort — don't fail the request
+            logger.warning("Failed to send GCal invites: %s", exc)
 
     # -- 6. Build and return the response ------------------------------------
     all_users = {u["user_id"]: u for u in invitees_result.data}

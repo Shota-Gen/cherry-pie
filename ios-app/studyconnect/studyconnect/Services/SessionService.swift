@@ -10,11 +10,8 @@ import Foundation
 
 class SessionService {
 
-    #if DEBUG && targetEnvironment(simulator)
+    // Use local Docker API for testing on simulator
     private let baseURL = "http://localhost:8080"
-    #else
-    private let baseURL = "https://cherry-pie-production.up.railway.app"
-    #endif
 
     // MARK: - Smart Scheduler API
 
@@ -140,8 +137,8 @@ class SessionService {
 
     // MARK: - Store Google Token
 
-    /// Sends the user's Google OAuth refresh token to the backend for storage.
-    func storeGoogleToken(userId: UUID, refreshToken: String, accessToken: String, googleEmail: String) async throws {
+    /// Sends the user's Google OAuth server auth code to the backend for token exchange and storage.
+    func storeGoogleToken(userId: UUID, serverAuthCode: String, accessToken: String, googleEmail: String) async throws {
         let url = URL(string: "\(baseURL)/scheduler/store-token")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -149,23 +146,27 @@ class SessionService {
 
         let body: [String: Any] = [
             "user_id": userId.uuidString.lowercased(),
-            "refresh_token": refreshToken,
+            "server_auth_code": serverAuthCode,
             "access_token": accessToken,
             "google_email": googleEmail,
-            "scopes": ["https://www.googleapis.com/auth/calendar.freebusy"],
+            "scopes": [
+                "https://www.googleapis.com/auth/calendar.freebusy",
+                "https://www.googleapis.com/auth/calendar.events"
+            ],
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-            print("✅ Google token stored successfully for \(googleEmail)")
-        } else {
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             let responseBody = String(data: data, encoding: .utf8) ?? "no body"
             print("❌ Token storage failed with status \(statusCode): \(responseBody)")
+            throw SchedulerError.serverError(statusCode: statusCode, message: responseBody)
         }
+
+        print("✅ Google token stored successfully for \(googleEmail)")
     }
 
     // MARK: - Create Session
@@ -253,7 +254,7 @@ struct SuggestTimesAPIResponse: Codable {
     let slots: [SlotAPIResponse]
     let participants_queried: Int
     let participants_with_calendar: Int
-    let used_llm: Bool
+    let used_llm: Bool?
 }
 
 struct SlotAPIResponse: Codable {
@@ -262,5 +263,5 @@ struct SlotAPIResponse: Codable {
     let available_user_ids: [String]
     let busy_user_ids: [String]
     let score: Double
-    let reason: String
+    let reason: String?
 }

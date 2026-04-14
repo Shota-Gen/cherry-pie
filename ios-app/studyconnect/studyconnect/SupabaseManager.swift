@@ -10,15 +10,9 @@ import CryptoKit
 class SupabaseManager {
     static let shared = SupabaseManager()
     
-    #if DEBUG && targetEnvironment(simulator)
-    // Simulator → local Supabase (via `supabase start`)
-    private static let supabaseURL = URL(string: "http://localhost:54321")!
-    private static let supabaseKey = "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz"
-    #else
-    // Physical device + Release → production Supabase
+    // Always use production Supabase for testing on simulator
     private static let supabaseURL = URL(string: "https://gnupzytcsswejfvtifik.supabase.co")!
     private static let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudXB6eXRjc3N3ZWpmdnRpZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MjE5NTUsImV4cCI6MjA4NzM5Nzk1NX0.r3yj0WuNskL1qHVwKyvBl3OXZyociZYpBtkKzpeOaz8"
-    #endif
     
     let client = SupabaseClient(
         supabaseURL: supabaseURL,
@@ -50,14 +44,17 @@ class SupabaseManager {
             let rawNonce = String.randomNonce()
             let hashedNonce = sha256(rawNonce)
 
-            // Request the calendar.freebusy scope for Smart Scheduler
-            let calendarScope = "https://www.googleapis.com/auth/calendar.freebusy"
+            // Request calendar scopes for Smart Scheduler + GCal invites
+            let calendarScopes = [
+                "https://www.googleapis.com/auth/calendar.freebusy",
+                "https://www.googleapis.com/auth/calendar.events"
+            ]
 
             // Present Google Sign-In (API runs on main actor)
             let gidResult = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: presentingVC,
                 hint: nil,
-                additionalScopes: [calendarScope],
+                additionalScopes: calendarScopes,
                 nonce: hashedNonce
             )
 
@@ -82,10 +79,13 @@ class SupabaseManager {
 
             // 4. Store Google tokens for Smart Scheduler (calendar access)
             let googleEmail = gidResult.user.profile?.email ?? session.user.email ?? ""
-            let refreshToken = gidResult.user.refreshToken.tokenString
+            let serverAuthCode = gidResult.serverAuthCode ?? ""
+            if serverAuthCode.isEmpty {
+                print("⚠️ No serverAuthCode returned — GIDServerClientID may be missing from Info.plist")
+            }
             await storeGoogleCalendarToken(
                 userId: session.user.id,
-                refreshToken: refreshToken,
+                serverAuthCode: serverAuthCode,
                 accessToken: accessToken,
                 googleEmail: googleEmail
             )
@@ -96,12 +96,12 @@ class SupabaseManager {
     }
 
     /// Store the Google OAuth tokens on the backend for offline FreeBusy access.
-    private func storeGoogleCalendarToken(userId: UUID, refreshToken: String, accessToken: String, googleEmail: String) async {
+    private func storeGoogleCalendarToken(userId: UUID, serverAuthCode: String, accessToken: String, googleEmail: String) async {
         do {
             let service = SessionService()
             try await service.storeGoogleToken(
                 userId: userId,
-                refreshToken: refreshToken,
+                serverAuthCode: serverAuthCode,
                 accessToken: accessToken,
                 googleEmail: googleEmail
             )

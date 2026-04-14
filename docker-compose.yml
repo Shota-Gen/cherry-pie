@@ -9,6 +9,9 @@ services:
       - DATABASE_URL=${SUPABASE_URI}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
   # The "Pulse" (Swift UDP Relay)
   # Uncomment once backend-relay has source code (Package.swift, Sources/, etc.)
   # relay:

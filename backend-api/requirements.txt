@@ -12,6 +12,7 @@ email-validator==2.2.0
 # Google Integration
 google-api-python-client==2.190.0
 google-auth-oauthlib==1.3.0
+httpx>=0.27.0
 
 # AI/LLM — Google Gemini via GenAI SDK
 google-genai>=1.0.0
