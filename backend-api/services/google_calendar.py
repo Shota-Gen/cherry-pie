@@ -44,11 +44,12 @@ def _build_credentials(
     refresh_token: str,
     client_id: str,
     client_secret: str,
+    access_token: str = "",
 ) -> Credentials:
-    """Build a Google Credentials object from a refresh token."""
+    """Build a Google Credentials object from a refresh token or access token."""
     return Credentials(
-        token=None,  # Will be refreshed automatically
-        refresh_token=refresh_token,
+        token=access_token or None,  # Use access token directly if available
+        refresh_token=refresh_token or None,
         token_uri=GOOGLE_TOKEN_URI,
         client_id=client_id,
         client_secret=client_secret,
@@ -63,6 +64,7 @@ def query_freebusy(
     refresh_token: str,
     client_id: str,
     client_secret: str,
+    access_token: str = "",
 ) -> dict[str, list[BusyBlock]]:
     """
     Query the Google Calendar FreeBusy API for a list of email addresses.
@@ -74,7 +76,7 @@ def query_freebusy(
 
     Returns a dict mapping email → list of BusyBlock.
     """
-    credentials = _build_credentials(refresh_token, client_id, client_secret)
+    credentials = _build_credentials(refresh_token, client_id, client_secret, access_token)
 
     service = build("calendar", "v3", credentials=credentials)
 
@@ -154,9 +156,10 @@ def fetch_participant_availability(
             emails=emails,
             time_min=time_min,
             time_max=time_max,
-            refresh_token=host_token["refresh_token_encrypted"],
+            refresh_token=host_token.get("refresh_token_encrypted", ""),
             client_id=client_id,
             client_secret=client_secret,
+            access_token=host_token.get("access_token_encrypted", ""),
         )
     except Exception as exc:
         logger.error("Failed to query FreeBusy: %s", exc)

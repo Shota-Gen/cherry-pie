@@ -178,6 +178,12 @@ def store_google_token(payload: StoreTokenRequest, supabase: SupabaseDep):
     refresh_token = payload.refresh_token
     access_token = payload.access_token
 
+    logger.info(
+        "store-token called for user=%s email=%s has_auth_code=%s has_refresh=%s has_access=%s",
+        payload.user_id, payload.google_email,
+        bool(payload.server_auth_code), bool(refresh_token), bool(access_token),
+    )
+
     if payload.server_auth_code:
         google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
         google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
@@ -196,17 +202,26 @@ def store_google_token(payload: StoreTokenRequest, supabase: SupabaseDep):
         refresh_token = tokens.get("refresh_token", refresh_token)
         access_token = tokens.get("access_token", access_token)
 
-    if not refresh_token:
+        if not refresh_token:
+            # Google only returns refresh_token on the FIRST consent.
+            # On subsequent sign-ins, we only get an access_token.
+            logger.warning(
+                "No refresh_token from exchange for %s — Google may have "
+                "already issued one previously. Storing access_token only.",
+                payload.google_email,
+            )
+
+    if not refresh_token and not access_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No refresh token obtained. The auth code may have already been used.",
+            detail="No refresh token or access token obtained. The auth code may have already been used.",
         )
 
     # Upsert the token row
     token_row = {
         "user_id": payload.user_id,
         "provider": "google",
-        "refresh_token_encrypted": refresh_token,
+        "refresh_token_encrypted": refresh_token or "",
         "access_token_encrypted": access_token or "",
         "google_email": payload.google_email,
         "scopes_granted": payload.scopes,

@@ -10,8 +10,12 @@ import Foundation
 
 class SessionService {
 
-    // Use local Docker API for testing on simulator
+    // Use local Docker API on simulator, production Railway URL on device
+    #if DEBUG && targetEnvironment(simulator)
     private let baseURL = "http://localhost:8080"
+    #else
+    private let baseURL = "https://cherry-pie-production.up.railway.app"
+    #endif
 
     // MARK: - Smart Scheduler API
 

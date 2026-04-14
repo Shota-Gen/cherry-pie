@@ -16,6 +16,8 @@ supabase/functions/.import_map.json
 venv/
 __pycache__/
 *.pyc
+scripts/.venv/
+scripts/token_cache.json
 
 # --- Swift/Xcode (Ayah/Jeffrey/Jawad) ---
 build/
