@@ -52,14 +52,27 @@ class FriendsService {
                 .execute()
                 
             let userRows = (try? JSONSerialization.jsonObject(with: usersResult.data) as? [[String: Any]]) ?? []
-            
+
+            // 3. Fetch which friends are currently in a study spot (PostGIS-based, always accurate)
+            let spotResult = try await client
+                .rpc("get_users_in_study_spots", params: ["current_user_id": userId])
+                .execute()
+            let spotRows = (try? JSONSerialization.jsonObject(with: spotResult.data) as? [[String: Any]]) ?? []
+            let spotMap = Dictionary(uniqueKeysWithValues: spotRows.compactMap { row -> (String, String)? in
+                guard let id = row["user_id"] as? String,
+                      let spot = row["spot_name"] as? String else { return nil }
+                return (id, spot)
+            })
+
             return userRows.compactMap { row -> UserProfile? in
                 guard let idStr = row["user_id"] as? String,
                       let id = UUID(uuidString: idStr),
                       let displayName = row["display_name"] as? String,
                       let email = row["email"] as? String else { return nil }
-                      
-                return UserProfile(userId: id, displayName: displayName, email: email)
+
+                var profile = UserProfile(userId: id, displayName: displayName, email: email)
+                profile.studySpot = spotMap[idStr] ?? ""
+                return profile
             }
         } catch {
             print("❌ Failed to fetch friends list: \(error.localizedDescription)")
