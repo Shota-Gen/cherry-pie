@@ -9,38 +9,51 @@ import CoreLocation
 import MapKit
 import Observation
 
-// Uses CLLocationManagerDelegate pattern as it's the standard CoreLocation API for efficient location tracking.
-// This is the recommended approach by Apple for iOS location updates and is more efficient than
-// AsyncStream wrappers for continuous location monitoring.
+// Uses modern CLLocationUpdate.liveUpdates() approach to fetch location.
+// This is the recommended approach for iOS 17+ location updates.
 @Observable
-class LocationManager: NSObject, CLLocationManagerDelegate {
+class LocationManager {
     private let manager = CLLocationManager()
     var location: CLLocationCoordinate2D?
     public var altitude: Double = 0
+    private var updateTask: Task<Void, Never>?
     
-    override init() {
-        super.init()
-        manager.delegate = self
+    init() {
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
         manager.requestAlwaysAuthorization()
-        manager.startUpdatingLocation()
+        
+        startUpdates()
+    }
+    
+    deinit {
+        updateTask?.cancel()
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last?.coordinate else { return }
-        
-        // Update the coordinate for Supabase
-        self.location = location
-        
-        // Send location to db
-        Task {
-            await SupabaseManager.shared.updateLocation(
-                latitude: location.latitude,
-                longitude: location.longitude,
-                altitude: self.altitude
-            )
+    private func startUpdates() {
+        updateTask = Task { [weak self] in
+            do {
+                let updates = CLLocationUpdate.liveUpdates()
+                for try await update in updates {
+                    guard let self = self, let newLocation = update.location else { continue }
+                    
+                    // Update the coordinate for Supabase
+                    self.location = newLocation.coordinate
+                    self.altitude = newLocation.altitude
+                    
+                    // Send location to db
+                    Task {
+                        await SupabaseManager.shared.updateLocation(
+                            latitude: newLocation.coordinate.latitude,
+                            longitude: newLocation.coordinate.longitude,
+                            altitude: self.altitude
+                        )
+                    }
+                }
+            } catch {
+                print("Failed to observe location updates: \(error)")
+            }
         }
     }
 }
