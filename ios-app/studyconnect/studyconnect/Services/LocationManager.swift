@@ -16,12 +16,15 @@ import Observation
 class LocationManager: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     var location: CLLocationCoordinate2D?
+    public var altitude: Double = 0
     
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.requestWhenInUseAuthorization()
+        manager.allowsBackgroundLocationUpdates = true
+        manager.pausesLocationUpdatesAutomatically = false
+        manager.requestAlwaysAuthorization()
         manager.startUpdatingLocation()
     }
 
@@ -35,7 +38,8 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         Task {
             await SupabaseManager.shared.updateLocation(
                 latitude: location.latitude,
-                longitude: location.longitude
+                longitude: location.longitude,
+                altitude: self.altitude
             )
         }
     }

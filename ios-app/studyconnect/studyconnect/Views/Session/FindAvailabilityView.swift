@@ -206,8 +206,8 @@ struct FindAvailabilityView: View {
                 }
                 .background(Color.white)
             }
-
-            // ── Confirmation overlay ───────────────────────────────────────
+        }
+        .overlay {
             if sessionSent {
                 Color.black.opacity(0.45)
                     .ignoresSafeArea()

@@ -177,7 +177,7 @@ class SupabaseManager {
                 isInvisible: nil,
                 lastKnownLat: nil,
                 lastKnownLng: nil,
-                currentFloor: nil,
+                altitude: nil,
                 createdAt: nil,
                 profileImage: nil,
                 studySpot: nil,
@@ -195,14 +195,15 @@ class SupabaseManager {
         }
     }
     
-    func updateLocation(latitude: Double, longitude: Double) async {
+    func updateLocation(latitude: Double, longitude: Double, altitude: Double) async {
         let userId = self.session?.user.id
         guard let userId else { return }
 
         do {
             let updateData: [String: AnyEncodable] = [
                 "last_known_lat": AnyEncodable(latitude),
-                "last_known_lng": AnyEncodable(longitude)
+                "last_known_lng": AnyEncodable(longitude),
+                "altitude": AnyEncodable(altitude)
             ]
 
             try await client
@@ -211,7 +212,7 @@ class SupabaseManager {
                 .eq("user_id", value: userId)
                 .execute()
 
-            print("Location updated: \(latitude), \(longitude)")
+            //print("Location updated: \(latitude), \(longitude)")
         } catch {
             print("Location update failed: \(error.localizedDescription)")
         }

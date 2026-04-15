@@ -23,6 +23,8 @@ struct ARNavigationSelectFriendView: View {
     @State private var cameraPermissionMessage = ""
 
     private let permissionService = ARCameraPermissionService()
+    
+    @Binding var nearbyNavigation: NearbyNavigationService?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,7 +53,7 @@ struct ARNavigationSelectFriendView: View {
 
                 ScrollView {                    
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("WITHIN 20 METERS")
+                        Text("WITHIN 10 METERS")
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.gray)
@@ -115,11 +117,11 @@ struct ARNavigationSelectFriendView: View {
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
-            if friends.isEmpty {
-                Task {
-                    friends = await service.getSuggestedFriends()
-                }
+            Task {
+                friends = await service.getFriendsInSameStudySpot()
             }
+        }
+        .onDisappear() {
         }
         .alert("Camera Access Required", isPresented: $showCameraPermissionAlert) {
             Button("OK", role: .cancel) { }
@@ -139,6 +141,7 @@ struct ARNavigationSelectFriendView: View {
 
     private func startARNavigation() {
         guard canStart else { return }
+        nearbyNavigation!.targetUser = selectedFriend
 
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         switch status {
@@ -182,7 +185,7 @@ struct ARNavigationSelectFriendView: View {
     @ViewBuilder
     private var destinationView: some View {
         if let friend = selectedFriend {
-            ARNavigationView(friend: friend)
+            ARNavigationView(friend: friend, nearbyNavigation: $nearbyNavigation)
         } else {
             EmptyView()
         }
@@ -191,6 +194,6 @@ struct ARNavigationSelectFriendView: View {
 
 #Preview {
     NavigationStack {
-        ARNavigationSelectFriendView()
+        ARNavigationSelectFriendView(nearbyNavigation: .constant(NearbyNavigationService(user: UserProfile(userId: UUID(), displayName: "Unknown User",  email: "unknown", studySpot: "Unknown", distanceMiles: 0.0), locationManager: nil)))
     }
 }

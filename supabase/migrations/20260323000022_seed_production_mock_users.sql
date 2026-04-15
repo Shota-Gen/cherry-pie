@@ -15,11 +15,11 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert public.users profiles for mock users
-INSERT INTO public.users (user_id, display_name, email, current_floor, last_known_lat, last_known_lng, is_invisible)
+INSERT INTO public.users (user_id, display_name, email, altitude, last_known_lat, last_known_lng, is_invisible)
 VALUES
-    ('a1111111-1111-1111-1111-111111111111',   'Alice Johnson', 'alice@umich.edu',  1, 42.2756, -83.7371, false),
-    ('b2222222-2222-2222-2222-222222222222',   'Bob Smith',     'bob@umich.edu',    1, 42.2769, -83.7396, false),
-    ('c3333333-3333-3333-3333-333333333333',   'Carol Davis',   'carol@umich.edu',  1, 42.2738, -83.7394, true),
-    ('d4444444-4444-4444-4444-444444444444',   'Dave Wilson',   'dave@umich.edu',   1, 42.2780, -83.7380, false),
-    ('e5555555-5555-5555-5555-555555555555',   'Eve Martinez',  'eve@umich.edu',    1, 40.7128, -74.0060, false)
+    ('a1111111-1111-1111-1111-111111111111',   'Alice Johnson', 'alice@umich.edu',  0.0, 42.2756, -83.7371, false),
+    ('b2222222-2222-2222-2222-222222222222',   'Bob Smith',     'bob@umich.edu',    0.0, 42.2769, -83.7396, false),
+    ('c3333333-3333-3333-3333-333333333333',   'Carol Davis',   'carol@umich.edu',  0.0, 42.2738, -83.7394, true),
+    ('d4444444-4444-4444-4444-444444444444',   'Dave Wilson',   'dave@umich.edu',   0.0, 42.2780, -83.7380, false),
+    ('e5555555-5555-5555-5555-555555555555',   'Eve Martinez',  'eve@umich.edu',    0.0, 40.7128, -74.0060, false)
 ON CONFLICT (user_id) DO NOTHING;

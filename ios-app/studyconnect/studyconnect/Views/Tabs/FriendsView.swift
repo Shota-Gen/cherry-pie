@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+import Foundation
+import SwiftUI
+import Auth
+
 struct FriendsView: View {
     @State private var friends: [UserProfile] = []
     @State private var service = FriendsService()
@@ -15,6 +19,9 @@ struct FriendsView: View {
     @State private var inviteService = SessionInviteService()
     @State private var showAcceptedModal = false
     @State private var acceptedInvite: SessionInvite?
+    @State private var incomingRequests: [FriendRequest] = []
+    @State private var friendRequestService = FriendRequestService()
+    @State private var currentUserId: UUID? = nil // For sender/receiver logic
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -41,6 +48,37 @@ struct FriendsView: View {
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
+                        // --- INCOMING FRIEND REQUESTS SECTION ---
+                        if !incomingRequests.isEmpty {
+                            Text("FRIEND REQUESTS")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.gray)
+                                .padding(.horizontal)
+                                .padding(.top, 12)
+
+                            VStack(spacing: 12) {
+                                ForEach(incomingRequests) { request in
+                                    FriendRequestRowView(
+                                        request: request,
+                                        onAccept: {
+                                            Task {
+                                                await friendRequestService.acceptRequest(fromUserId: request.userId)
+                                                incomingRequests.removeAll { $0.id == request.id }
+                                                friends = await service.getFriendsList()
+                                            }
+                                        },
+                                        onDecline: {
+                                            Task {
+                                                await friendRequestService.rejectRequest(fromUserId: request.userId)
+                                                incomingRequests.removeAll { $0.id == request.id }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
                         NavigationLink(value: FriendsRoute.selectFriends) {
                             HStack(spacing: 12) {
                                 Image(systemName: "calendar")
@@ -121,9 +159,11 @@ struct FriendsView: View {
             .blur(radius: showAcceptedModal ? 10 : 0)
             .allowsHitTesting(!showAcceptedModal)
             .onAppear {
+                currentUserId = SupabaseManager.shared.session?.user.id
                 Task {
                     friends = await service.getFriendsList()
                     pendingInvites = await inviteService.getPendingInvites()
+                    incomingRequests = await friendRequestService.getIncomingRequests()
                 }
             }
             .navigationDestination(for: FriendsRoute.self) { route in
@@ -136,23 +176,23 @@ struct FriendsView: View {
                     FindAvailabilityView(config: config, path: $path)
                 }
             }
+            .overlay {
+                if showAcceptedModal, let invite = acceptedInvite {
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            withAnimation { showAcceptedModal = false }
+                        }
 
-            // Custom Modal Overlay
-            if showAcceptedModal, let invite = acceptedInvite {
-                Color.black.opacity(0.2)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .onTapGesture {
-                        withAnimation { showAcceptedModal = false }
-                    }
-
-                SessionAcceptedModal(
-                    isPresented: $showAcceptedModal,
-                    invitingUser: invite.fromUser,
-                    sessionDate: invite.startTime
-                )
-                .transition(.scale(scale: 0.8).combined(with: .opacity))
-                .zIndex(1)
+                    SessionAcceptedModal(
+                        isPresented: $showAcceptedModal,
+                        invitingUser: invite.fromUser,
+                        sessionDate: invite.startTime
+                    )
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    .zIndex(1)
+                }
             }
         }
     }

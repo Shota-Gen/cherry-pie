@@ -20,7 +20,7 @@ struct UserProfile: Identifiable, Codable, Hashable {
     var isInvisible: Bool = false
     var lastKnownLat: Double? = nil
     var lastKnownLng: Double? = nil
-    var currentFloor: Int = 1
+    var altitude: Double = 0
     var createdAt: Date? = nil
     var distanceMiles: Double? = nil   // UI-only, for friends list
 

@@ -12,7 +12,7 @@ CREATE TABLE public.users (
     is_invisible BOOLEAN DEFAULT FALSE,
     last_known_lat DOUBLE PRECISION,
     last_known_lng DOUBLE PRECISION,
-    current_floor INTEGER DEFAULT 1, -- Added for Jeffrey's barometer data
+    altitude DOUBLE PRECISION DEFAULT 0, -- barometer altitude in meters
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

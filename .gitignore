@@ -10,6 +10,8 @@ supabase/functions/.import_map.json
 **/.env.local
 **/.env.prod
 .DS_Store
+.claude/*
+todo.md
 
 # --- Python (Anant/Josh) ---
 .venv/
