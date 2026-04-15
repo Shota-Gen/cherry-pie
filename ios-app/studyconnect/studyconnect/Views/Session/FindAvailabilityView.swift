@@ -131,6 +131,33 @@ struct FindAvailabilityView: View {
                         }
                         .padding(.top, 40)
                         .padding(.horizontal)
+                    } else if let error = errorMessage {
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.orange)
+                            Text("Couldn't find times")
+                                .font(.headline)
+                            Text(error)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Try Again") {
+                                Task { await fetchSlots() }
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.blue)
+                            .padding(.top, 4)
+                            Button("Use Offline Mode") {
+                                slots = service.getSuggestedSlotsLocal(config: config)
+                                errorMessage = nil
+                                usedLLM = false
+                            }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 40)
+                        .padding(.horizontal)
                     } else if slots.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "calendar.badge.exclamationmark")
@@ -230,6 +257,7 @@ struct FindAvailabilityView: View {
 
     private func fetchSlots() async {
         isLoading = true
+        errorMessage = nil
         errorMessage = nil
 
         guard let userId = supabase.session?.user.id else {

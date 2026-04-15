@@ -34,7 +34,7 @@ class SessionService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 90
 
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -72,9 +72,11 @@ class SessionService {
         let decoded = try JSONDecoder().decode(SuggestTimesAPIResponse.self, from: data)
 
         // Convert API response to TimeSlot models
-        let friendMap = Dictionary(uniqueKeysWithValues:
+        var friendMap = Dictionary(uniqueKeysWithValues:
             config.selectedFriends.map { ($0.userId.uuidString.lowercased(), $0) }
         )
+        // Include the host so they appear in slot availability results
+        friendMap[hostId.uuidString.lowercased()] = UserProfile(userId: hostId, displayName: "You", email: "")
 
         return decoded.slots.compactMap { slot -> TimeSlot? in
             guard let start = formatter.date(from: slot.start),

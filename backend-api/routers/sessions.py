@@ -12,7 +12,6 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
 from config import SupabaseDep
-from services.email import send_session_invite_emails
 from services.google_calendar_invite import send_session_calendar_invites
 
 logger = logging.getLogger(__name__)
@@ -246,17 +245,6 @@ def create_private_session(
 
     # -- 5. Send invite emails (best-effort, non-blocking) -------------------
     invitee_users = [u for u in invitees_result.data if u["user_id"] in set(invitee_ids)]
-    try:
-        send_session_invite_emails(
-            session_title=payload.title,
-            session_start=payload.starts_at,
-            session_end=payload.ends_at,
-            creator_name=creator["display_name"],
-            invitees=invitee_users,
-        )
-    except Exception:
-        # Email is best-effort — don't fail the request if it errors
-        pass
 
     # -- 5b. Send Google Calendar invites (best-effort) ----------------------
     google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")

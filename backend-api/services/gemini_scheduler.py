@@ -216,7 +216,7 @@ def suggest_times(
                 len(participant_data), window_start, window_end)
 
     # Try Gemini 3.0 Flash first, fall back to 3.1 Flash Lite
-    models_to_try = ["gemini-3.1-flash-lite-preview"]
+    models_to_try = ["gemini-2.5-flash"]
 
     gen_config = types.GenerateContentConfig(
         tools=[SUGGEST_SLOTS_TOOL],
@@ -232,6 +232,7 @@ def suggest_times(
     for model_name in models_to_try:
         try:
             logger.info("Trying model: %s", model_name)
+            logging.info("Context: %s", context)
             response = client.models.generate_content(
                 model=model_name,
                 contents=context,
@@ -276,80 +277,3 @@ def _parse_response(response) -> list[SuggestedSlot]:
     # Sort by score descending (best slots first)
     slots.sort(key=lambda s: s.score, reverse=True)
     return slots
-
-
-# ---------------------------------------------------------------------------
-# Fallback: deterministic scheduling without LLM
-# ---------------------------------------------------------------------------
-
-
-# def suggest_times_fallback(
-#     participant_data: list[dict],
-#     window_start: datetime,
-#     window_end: datetime,
-#     duration_minutes: int,
-# ) -> list[SuggestedSlot]:
-#     """
-#     Deterministic fallback scheduler for when the LLM is unavailable.
-    
-#     Slides a window across the search range and scores each position
-#     by how many participants are free.
-#     """
-#     from datetime import timedelta
-
-#     duration = timedelta(minutes=duration_minutes)
-#     step = timedelta(minutes=30)  # 30-min granularity
-
-#     # Collect all busy blocks per user_id
-#     busy_map: dict[str, list[tuple[datetime, datetime]]] = {}
-#     all_user_ids = []
-#     for p in participant_data:
-#         uid = p["user_id"]
-#         all_user_ids.append(uid)
-#         blocks = []
-#         for b in p.get("busy_blocks", []):
-#             try:
-#                 bs = datetime.fromisoformat(b["start"])
-#                 be = datetime.fromisoformat(b["end"])
-#                 # Strip tzinfo to avoid naive/aware comparison errors
-#                 bs = bs.replace(tzinfo=None)
-#                 be = be.replace(tzinfo=None)
-#                 blocks.append((bs, be))
-#             except (ValueError, KeyError):
-#                 continue
-#         busy_map[uid] = blocks
-
-#     def is_free(user_id: str, slot_start: datetime, slot_end: datetime) -> bool:
-#         for bs, be in busy_map.get(user_id, []):
-#             if slot_start < be and slot_end > bs:  # overlap check
-#                 return False
-#         return True
-
-#     # Normalize window datetimes to naive for comparison
-#     ws = window_start.replace(tzinfo=None)
-#     we = window_end.replace(tzinfo=None)
-
-#     candidates: list[SuggestedSlot] = []
-#     current = ws
-
-#     while current + duration <= we:
-#         slot_end = current + duration
-#         available = [uid for uid in all_user_ids if is_free(uid, current, slot_end)]
-#         busy = [uid for uid in all_user_ids if uid not in available]
-#         score = len(available) / max(len(all_user_ids), 1)
-
-#         if score > 0:  # At least one person available
-#             candidates.append(SuggestedSlot(
-#                 start=current.isoformat(),
-#                 end=slot_end.isoformat(),
-#                 available_user_ids=available,
-#                 busy_user_ids=busy,
-#                 score=score,
-#                 reason=f"{len(available)}/{len(all_user_ids)} participants available",
-#             ))
-
-#         current += step
-
-#     # Sort by score descending, take top 5
-#     candidates.sort(key=lambda s: s.score, reverse=True)
-#     return candidates[:5]
