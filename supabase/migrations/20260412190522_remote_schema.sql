@@ -1,3 +1,8 @@
+-- =============================================================
+-- remote_schema.sql — made fully idempotent so it can run on
+-- a fresh DB (after earlier migrations) OR be re-applied safely.
+-- =============================================================
+
 drop extension if exists "pg_net";
 
 create schema if not exists "tiger";
@@ -6,41 +11,86 @@ create extension if not exists "fuzzystrmatch" with schema "tiger";
 
 create extension if not exists "postgis_tiger_geocoder" with schema "tiger";
 
-create type "public"."friend_status" as enum ('pending', 'rejected', 'accepted');
+-- Idempotent enum creation
+DO $$
+BEGIN
+  CREATE TYPE public.friend_status AS ENUM ('pending', 'rejected', 'accepted');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
-alter table "public"."external_auth_tokens" drop constraint "external_auth_tokens_pkey";
+-- Drop external_auth_tokens PK only if the composite (user_id, provider) form exists
+-- (added by migration 20260405230000). If it's already the simple (user_id) PK, skip.
+DO $$
+BEGIN
+  -- Check if 'provider' column exists — if so the composite PK is in place
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'external_auth_tokens'
+      AND column_name = 'provider'
+  ) THEN
+    ALTER TABLE public.external_auth_tokens DROP CONSTRAINT IF EXISTS external_auth_tokens_pkey;
+  END IF;
+END $$;
 
-drop index if exists "public"."idx_external_auth_tokens_provider";
+DROP INDEX IF EXISTS public.idx_external_auth_tokens_provider;
+DROP INDEX IF EXISTS public.external_auth_tokens_pkey;
 
-drop index if exists "public"."external_auth_tokens_pkey";
+-- Drop columns only if they exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='external_auth_tokens' AND column_name='google_email') THEN
+    ALTER TABLE public.external_auth_tokens DROP COLUMN google_email;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='external_auth_tokens' AND column_name='provider') THEN
+    ALTER TABLE public.external_auth_tokens DROP COLUMN provider;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='external_auth_tokens' AND column_name='scopes_granted') THEN
+    ALTER TABLE public.external_auth_tokens DROP COLUMN scopes_granted;
+  END IF;
+END $$;
 
-alter table "public"."external_auth_tokens" drop column "google_email";
+-- Add columns to friends only if they don't already exist
+ALTER TABLE public.friends ADD COLUMN IF NOT EXISTS friend_status TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE public.friends ADD COLUMN IF NOT EXISTS user_status TEXT NOT NULL DEFAULT 'accepted';
 
-alter table "public"."external_auth_tokens" drop column "provider";
+-- Add altitude to users only if it doesn't already exist
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS altitude DOUBLE PRECISION DEFAULT 0;
 
-alter table "public"."external_auth_tokens" drop column "scopes_granted";
+-- Create indexes idempotently
+CREATE INDEX IF NOT EXISTS friends_pending_requests_idx
+    ON public.friends USING btree (friend_id)
+    WHERE (friend_status = 'pending'::text);
 
-alter table "public"."friends" add column "friend_status" text not null default 'pending'::text;
+-- Recreate the simple (user_id) PK on external_auth_tokens
+DO $$
+BEGIN
+  -- Only create if the PK doesn't already exist
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'external_auth_tokens_pkey'
+      AND conrelid = 'public.external_auth_tokens'::regclass
+  ) THEN
+    CREATE UNIQUE INDEX external_auth_tokens_pkey ON public.external_auth_tokens USING btree (user_id);
+    ALTER TABLE public.external_auth_tokens ADD CONSTRAINT external_auth_tokens_pkey PRIMARY KEY USING INDEX external_auth_tokens_pkey;
+  END IF;
+END $$;
 
-alter table "public"."friends" add column "user_status" text not null default 'accepted'::text;
-
-alter table "public"."users" drop column "current_floor";
-
-alter table "public"."users" add column "altitude" double precision default 0;
-
-CREATE INDEX friends_pending_requests_idx ON public.friends USING btree (friend_id) WHERE (friend_status = 'pending'::text);
-
-CREATE UNIQUE INDEX external_auth_tokens_pkey ON public.external_auth_tokens USING btree (user_id);
-
-alter table "public"."external_auth_tokens" add constraint "external_auth_tokens_pkey" PRIMARY KEY using index "external_auth_tokens_pkey";
-
-alter table "public"."friends" add constraint "friends_friend_status_check" CHECK ((friend_status = ANY (ARRAY['accepted'::text, 'pending'::text]))) not valid;
-
-alter table "public"."friends" validate constraint "friends_friend_status_check";
-
-alter table "public"."friends" add constraint "friends_user_status_check" CHECK ((user_status = ANY (ARRAY['accepted'::text, 'pending'::text]))) not valid;
-
-alter table "public"."friends" validate constraint "friends_user_status_check";
+-- Add check constraints idempotently
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'friends_friend_status_check') THEN
+    ALTER TABLE public.friends ADD CONSTRAINT friends_friend_status_check
+      CHECK (friend_status = ANY (ARRAY['accepted'::text, 'pending'::text])) NOT VALID;
+    ALTER TABLE public.friends VALIDATE CONSTRAINT friends_friend_status_check;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'friends_user_status_check') THEN
+    ALTER TABLE public.friends ADD CONSTRAINT friends_user_status_check
+      CHECK (user_status = ANY (ARRAY['accepted'::text, 'pending'::text])) NOT VALID;
+    ALTER TABLE public.friends VALIDATE CONSTRAINT friends_user_status_check;
+  END IF;
+END $$;
 
 set check_function_bodies = off;
 
