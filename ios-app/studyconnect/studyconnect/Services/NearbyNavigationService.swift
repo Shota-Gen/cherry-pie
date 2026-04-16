@@ -459,8 +459,8 @@ extension NearbyNavigationService {
     /// Camera look direction projected onto the horizontal plane (perpendicular to camera “up”), for a coarse “along‑range” hint before multilateration converges.
     private static func horizontalForward(cameraTransform: simd_float4x4) -> SIMD3<Float> {
         let forward = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
-        let up = SIMD3<Float>(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z)
-        let g = simd_normalize(up)
+        //let up = SIMD3<Float>(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z)
+        let g = SIMD3<Float>(0, 1, 0)
         var f = forward - g * simd_dot(forward, g)
         if simd_length_squared(f) < 1e-8 { return simd_normalize(forward) }
         return simd_normalize(f)
