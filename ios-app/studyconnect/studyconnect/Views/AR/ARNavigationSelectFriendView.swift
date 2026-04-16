@@ -150,16 +150,14 @@ struct ARNavigationSelectFriendView: View {
             navigateToAR = true
 
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                // Use MainActor to update UI state from camera permission callback
-                Task { @MainActor in
-                    permissionService.recordPermissionGranted(granted)
-                    if granted {
-                        navigateToAR = true
-                    } else {
-                        cameraPermissionMessage = "We need camera access to show AR navigation."
-                        showCameraPermissionAlert = true
-                    }
+            Task {
+                let granted = await AVCaptureDevice.requestAccess(for: .video)
+                permissionService.recordPermissionGranted(granted)
+                if granted {
+                    navigateToAR = true
+                } else {
+                    cameraPermissionMessage = "We need camera access to show AR navigation."
+                    showCameraPermissionAlert = true
                 }
             }
 

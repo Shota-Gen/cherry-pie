@@ -80,54 +80,51 @@ struct AddFriendView: View {
             Spacer()
         }
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
-        .overlay(alignment: .center) {
-            // Success modal overlay
+        .overlay {
             if showSuccess {
-                // ZStack required for layering modal overlay with semi-transparent dimming background behind content
-                ZStack {
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .overlay {
+                        VStack(spacing: 20) {
+                            Circle()
+                                .fill(Color.green.opacity(0.15))
+                                .frame(width: 80, height: 80)
+                                .overlay {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(.green)
+                                }
 
-                    VStack(spacing: 20) {
-                        Circle()
-                            .fill(Color.green.opacity(0.15))
-                            .frame(width: 80, height: 80)
-                            .overlay {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 48))
-                                    .foregroundColor(.green)
+                            Text("Request Sent!")
+                                .font(.title2.weight(.bold))
+
+                            Text("We'll let them know you want to connect.")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+
+                            Button {
+                                showSuccess = false
+                                dismiss()
+                            } label: {
+                                Text("Back to Friends")
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .cornerRadius(10)
                             }
-
-                        Text("Request Sent!")
-                            .font(.title2.weight(.bold))
-
-                        Text("We'll let them know you want to connect.")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-
-                        Button {
-                            showSuccess = false
-                            dismiss()
-                        } label: {
-                            Text("Back to Friends")
-                                .font(.headline.weight(.semibold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(10)
+                            .padding(.top, 4)
                         }
-                        .padding(.top, 4)
+                        .padding(32)
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .shadow(radius: 20)
+                        .padding(.horizontal, 32)
+                        .transition(.scale.combined(with: .opacity))
                     }
-                    .padding(32)
-                    .background(Color.white)
-                    .cornerRadius(20)
-                    .shadow(radius: 20)
-                    .padding(.horizontal, 32)
-                    .transition(.scale.combined(with: .opacity))
-                }
             }
         }
         .navigationBarHidden(true)

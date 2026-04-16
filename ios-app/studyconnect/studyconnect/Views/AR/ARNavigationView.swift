@@ -2,6 +2,7 @@ import SwiftUI
 import RealityKit
 import ARKit
 import UIKit
+import Combine
 
 struct ARNavigationView: View {
     @Environment(\.dismiss) private var dismiss
@@ -9,9 +10,9 @@ struct ARNavigationView: View {
     @Binding var nearbyNavigation: NearbyNavigationService!
     @State private var distanceToTarget: Float = 0
     @State private var isTargetOnScreen = true
-    /// Signed angle (degrees) in the camera’s horizontal plane from look direction toward the target — use alone for overlay rotation (do not mix with world heading).
+    /// Signed angle (degrees) in the camera's horizontal plane from look direction toward the target.
     @State private var bearingToTarget: Float = 0
-    /// Mirrored from `nearbyNavigation` on each AR frame so SwiftUI reliably redraws (service updates alone do not always refresh through `@Binding`).
+    /// Mirrored from `nearbyNavigation` on each AR frame so SwiftUI reliably redraws.
     @State private var navigationSourceDebug: String = NavigationSourceMode.unavailable.debugLabel
 
     var body: some View {
@@ -49,7 +50,7 @@ struct ARNavigationView: View {
                     .padding(.bottom, 30)
             }
 
-            // Debug on top so the target card / chrome never occludes it; value driven by @State from the AR timer.
+            // Debug on top so the target card / chrome never occludes it; value driven by @State from the scene subscription.
             VStack {
                 Spacer()
                 Text("Source: \(navigationSourceDebug)")
@@ -75,7 +76,6 @@ struct ARNavigationView: View {
     }
 
     private func compassArrow(cameraRelativeAzimuthDegrees: Float) -> some View {
-        // `cameraRelativeAzimuthDegrees` is atan2(right, forward) in the plane perpendicular to camera up — already accounts for device rotation via the AR camera pose. Do not subtract a separate world heading.
         VStack {
             Image(systemName: "location.fill")
                 .font(.system(size: 36, weight: .bold))
@@ -215,7 +215,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
         private var beaconAnchor: AnchorEntity?
         private var beaconEntity: ModelEntity?
         private var ringEntity: ModelEntity?
-        private var timer: Timer?
+        private var sceneSubscription: Cancellable?
         private var pulsePhase: Float = 0
 
         init(friendName: String, profileImage: String) {
@@ -226,14 +226,11 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
         func setupBeacon(in arView: ARView) {
             let anchor = AnchorEntity(world: .zero)
 
-            // Main beacon sphere — rendered as "purgatory" object
-            // Uses UnlitMaterial so it glows and is always visible
             let beaconMesh = MeshResource.generateSphere(radius: 0.12)
             var beaconMaterial = UnlitMaterial()
             beaconMaterial.color = .init(tint: beaconColor.withAlphaComponent(0.9))
             let beacon = ModelEntity(mesh: beaconMesh, materials: [beaconMaterial])
 
-            // Outer pulsing ring
             let ringMesh = MeshResource.generateSphere(radius: 0.18)
             var ringMaterial = UnlitMaterial()
             ringMaterial.color = .init(tint: beaconColor.withAlphaComponent(0.25))
@@ -256,10 +253,11 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
             bearingBinding: Binding<Float>,
             navigationSourceDebugBinding: Binding<String>
         ) {
-            // ~30 fps update loop
-            timer = Timer.scheduledTimer(withTimeInterval: 0.033, repeats: true) { [weak self] _ in
+            // Per-frame update via RealityKit scene event — fires in sync with the render loop
+            sceneSubscription = arView.scene.subscribe(to: SceneEvents.Update.self) { [weak self] event in
                 guard let self else { return }
                 guard let frame = arView.session.currentFrame else { return }
+                let dt = Float(event.deltaTime)
                 nearbyNavigation.updateBestTargetEstimate(cameraTransform: frame.camera.transform)
                 let targetWorldPos = nearbyNavigation.target
 
@@ -284,7 +282,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
 
                 // Pulse effect — frequency increases as user gets closer
                 let pulseSpeed: Float = max(1.0, 6.0 - distance)
-                self.pulsePhase += 0.033 * pulseSpeed
+                self.pulsePhase += dt * pulseSpeed
                 let pulseSin = (sin(self.pulsePhase) + 1.0) / 2.0 // 0..1
                 let ringScale = scaleFactor * (1.0 + pulseSin * 0.5)
 
@@ -312,7 +310,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
                 let screenBounds = UIScreen.main.bounds
                 let onScreen = screenBounds.contains(CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y)))
 
-                // Camera-relative azimuth: angle in the horizontal plane (perpendicular to camera up) from look direction toward the target.
+                // Camera-relative azimuth
                 let deltaVector = targetWorldPos - camPos
                 let forward = simd_normalize(SIMD3<Float>(-camTransform.columns.2.x, -camTransform.columns.2.y, -camTransform.columns.2.z))
                 let right = simd_normalize(SIMD3<Float>(camTransform.columns.0.x, camTransform.columns.0.y, camTransform.columns.0.z))
@@ -326,8 +324,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
                 } else {
                     bearingDegrees = atan2(rightDist, forwardDist) * 180 / .pi
                 }
-                
-                // Timer runs on the main thread’s RunLoop — avoid piling up `Task { @MainActor }` work, which can stall the UI when NI is busy.
+
                 let mode = nearbyNavigation.navigationSourceMode
                 let td = nearbyNavigation.targetDistance
                 let displayDistance: Float
@@ -362,7 +359,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
         }
 
         deinit {
-            timer?.invalidate()
+            sceneSubscription?.cancel()
         }
     }
 }
