@@ -62,6 +62,9 @@ class NearbyNavigationService: NSObject {
             return Array(foundUsers.values)
         }
     }
+
+    /// Kept so the AR UI can read device true heading for compass-bearing math.
+    private weak var locationManager: LocationManager?
     
     var arview: ARView = ARView(frame: .zero)
     
@@ -120,6 +123,7 @@ class NearbyNavigationService: NSObject {
     
     init(user: UserProfile, locationManager: LocationManager?) {
         currentUser = user
+        self.locationManager = locationManager
         myPeerId = MCPeerID(displayName: user.userId.uuidString)
         super.init()
         
@@ -447,6 +451,59 @@ extension NearbyNavigationService {
         target = resolved.targetWorld
         targetDistance = resolved.distanceMeters
         navigationSourceMode = resolved.mode
+    }
+
+    /// Degrees clockwise an "up" arrow should rotate to point at the peer from the device's current facing.
+    /// Returns `nil` when no reliable source is available (UI should hide the indicator).
+    ///
+    /// Priority:
+    /// 1) UWB direct / multilateration — target has a real AR-world position, so measure vs camera forward.
+    /// 2) UWB calibrating / GPS — AR-world target is synthesized from camera axis (calibrating) or
+    ///    ARKit's drift-prone heading alignment (gps). Use true-north compass bearing (GPS great-circle
+    ///    bearing to friend minus device true heading) so the arrow matches the real world.
+    func compassBearingDegrees(cameraTransform: simd_float4x4) -> Float? {
+        switch navigationSourceMode {
+        case .uwbDirect, .uwbMultilateration:
+            return cameraRelativeBearingDegrees(cameraTransform: cameraTransform, target: target)
+        case .uwbCalibrating, .gps:
+            return compassBearingFromGPS()
+        case .unavailable:
+            return nil
+        }
+    }
+
+    private func cameraRelativeBearingDegrees(cameraTransform: simd_float4x4, target worldTarget: SIMD3<Float>) -> Float {
+        let camPos = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+        let delta = worldTarget - camPos
+        let forward = simd_normalize(SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z))
+        let right = simd_normalize(SIMD3<Float>(cameraTransform.columns.0.x, cameraTransform.columns.0.y, cameraTransform.columns.0.z))
+        let up = simd_normalize(SIMD3<Float>(cameraTransform.columns.1.x, cameraTransform.columns.1.y, cameraTransform.columns.1.z))
+        let horiz = delta - up * simd_dot(delta, up)
+        if simd_length_squared(horiz) < 1e-8 { return 0 }
+        let fDist = simd_dot(horiz, forward)
+        let rDist = simd_dot(horiz, right)
+        return atan2(rDist, fDist) * 180 / .pi
+    }
+
+    private func compassBearingFromGPS() -> Float? {
+        guard let current = gps, let dest = targetGPS else { return nil }
+        guard let heading = locationManager?.trueHeading, heading >= 0 else { return nil }
+        let trueBearing = Self.trueBearingDegrees(from: current, to: dest)
+        var relative = Float(trueBearing - heading)
+        while relative > 180 { relative -= 360 }
+        while relative < -180 { relative += 360 }
+        return relative
+    }
+
+    /// Great-circle bearing (degrees clockwise from true north) from `a` to `b`.
+    static func trueBearingDegrees(from a: CLLocationCoordinate2D, to b: CLLocationCoordinate2D) -> Double {
+        let lat1 = a.latitude * .pi / 180
+        let lat2 = b.latitude * .pi / 180
+        let dLon = (b.longitude - a.longitude) * .pi / 180
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        let theta = atan2(y, x)
+        return (theta * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
     }
 
     static func worldTargetFromUWB(cameraTransform: simd_float4x4, cameraPosition: SIMD3<Float>, direction: SIMD3<Float>, distance: Float) -> SIMD3<Float> {

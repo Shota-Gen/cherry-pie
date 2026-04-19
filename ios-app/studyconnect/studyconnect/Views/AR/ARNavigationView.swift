@@ -10,8 +10,9 @@ struct ARNavigationView: View {
     @Binding var nearbyNavigation: NearbyNavigationService!
     @State private var distanceToTarget: Float = 0
     @State private var isTargetOnScreen = true
-    /// Signed angle (degrees) in the camera's horizontal plane from look direction toward the target.
-    @State private var bearingToTarget: Float = 0
+    /// Degrees clockwise to rotate an "up" arrow so it points at the friend.
+    /// `nil` means no reliable bearing yet (UI hides the arrow instead of showing stale data).
+    @State private var bearingToTarget: Float? = nil
     /// Mirrored from `nearbyNavigation` on each AR frame so SwiftUI reliably redraws.
     @State private var navigationSourceDebug: String = NavigationSourceMode.unavailable.debugLabel
 
@@ -31,8 +32,9 @@ struct ARNavigationView: View {
             )
             .ignoresSafeArea(edges: .all)
 
-            // Direction arrow — rotation is camera-relative azimuth only (matches the live camera feed).
-            compassArrow(cameraRelativeAzimuthDegrees: bearingToTarget)
+            if let bearing = bearingToTarget {
+                compassArrow(rotationDegrees: bearing)
+            }
 
             VStack {
                 topBar
@@ -41,7 +43,7 @@ struct ARNavigationView: View {
 
                 Spacer()
 
-                if !isTargetOnScreen {
+                if !isTargetOnScreen, bearingToTarget != nil {
                     offScreenIndicator
                         .padding(.bottom, 40)
                 }
@@ -75,17 +77,21 @@ struct ARNavigationView: View {
         }
     }
 
-    private func compassArrow(cameraRelativeAzimuthDegrees: Float) -> some View {
+    private func compassArrow(rotationDegrees: Float) -> some View {
         VStack {
-            Image(systemName: "location.fill")
-                .font(.system(size: 36, weight: .bold))
-                .foregroundColor(Color(red: 0.22, green: 0.61, blue: 0.99))
-                .rotationEffect(.degrees(Double(cameraRelativeAzimuthDegrees)))
-                .padding(16)
-                .background(Color.black.opacity(0.5))
-                .clipShape(Circle())
-                .shadow(color: Color.black.opacity(0.5), radius: 12, x: 0, y: 6)
-            
+            ZStack {
+                Circle()
+                    .fill(Color.black.opacity(0.55))
+                    .frame(width: 76, height: 76)
+
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 34, weight: .heavy))
+                    .foregroundColor(Color(red: 0.22, green: 0.61, blue: 0.99))
+                    .rotationEffect(.degrees(Double(rotationDegrees)))
+                    .animation(.easeOut(duration: 0.15), value: rotationDegrees)
+            }
+            .shadow(color: Color.black.opacity(0.5), radius: 12, x: 0, y: 6)
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -131,13 +137,9 @@ struct ARNavigationView: View {
 
     private var offScreenIndicator: some View {
         VStack(spacing: 6) {
-            Image(systemName: "arrow.up")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(.white)
-                .rotationEffect(.degrees(0)) // TODO: rotate toward target bearing
             Text("Look around to find \(friend.displayTitle)")
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(.white.opacity(0.85))
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
@@ -163,6 +165,9 @@ struct ARNavigationView: View {
     }
 
     private var formattedDistance: String {
+        if distanceToTarget <= 0 {
+            return "Locating…"
+        }
         if distanceToTarget < 1 {
             return String(format: "%.0f cm away", distanceToTarget * 100)
         }
@@ -170,6 +175,7 @@ struct ARNavigationView: View {
     }
 
     private var proximityColor: Color {
+        if distanceToTarget <= 0 { return .gray }
         if distanceToTarget < 2 { return .green }
         if distanceToTarget < 7 { return .yellow }
         return .orange
@@ -183,7 +189,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
     @Binding var nearbyNavigation: NearbyNavigationService!
     @Binding var distanceToTarget: Float
     @Binding var isTargetOnScreen: Bool
-    @Binding var bearingToTarget: Float
+    @Binding var bearingToTarget: Float?
     @Binding var navigationSourceDebug: String
 
     func makeCoordinator() -> Coordinator {
@@ -250,7 +256,7 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
             nearbyNavigation: NearbyNavigationService,
             distanceBinding: Binding<Float>,
             isOnScreenBinding: Binding<Bool>,
-            bearingBinding: Binding<Float>,
+            bearingBinding: Binding<Float?>,
             navigationSourceDebugBinding: Binding<String>
         ) {
             // Per-frame update via RealityKit scene event — fires in sync with the render loop
@@ -310,32 +316,22 @@ private struct ARBeaconViewContainer: UIViewRepresentable {
                 let screenBounds = UIScreen.main.bounds
                 let onScreen = screenBounds.contains(CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y)))
 
-                // Camera-relative azimuth
-                let deltaVector = targetWorldPos - camPos
-                let forward = simd_normalize(SIMD3<Float>(-camTransform.columns.2.x, -camTransform.columns.2.y, -camTransform.columns.2.z))
-                let right = simd_normalize(SIMD3<Float>(camTransform.columns.0.x, camTransform.columns.0.y, camTransform.columns.0.z))
-                let up = simd_normalize(SIMD3<Float>(camTransform.columns.1.x, camTransform.columns.1.y, camTransform.columns.1.z))
-                let deltaHorizontal = deltaVector - up * simd_dot(deltaVector, up)
-                let forwardDist = simd_dot(deltaHorizontal, forward)
-                let rightDist = simd_dot(deltaHorizontal, right)
-                let bearingDegrees: Float
-                if simd_length_squared(deltaHorizontal) < 1e-8 {
-                    bearingDegrees = 0
-                } else {
-                    bearingDegrees = atan2(rightDist, forwardDist) * 180 / .pi
-                }
-
                 let mode = nearbyNavigation.navigationSourceMode
                 let td = nearbyNavigation.targetDistance
                 let displayDistance: Float
                 switch mode {
+                case .unavailable:
+                    displayDistance = 0
                 case .gps:
                     displayDistance = distance
                 default:
                     displayDistance = td > 0 ? td : distance
                 }
+
+                let bearing = nearbyNavigation.compassBearingDegrees(cameraTransform: camTransform)
+
                 distanceBinding.wrappedValue = displayDistance
-                bearingBinding.wrappedValue = bearingDegrees
+                bearingBinding.wrappedValue = bearing
                 navigationSourceDebugBinding.wrappedValue = mode.debugLabel
                 isOnScreenBinding.wrappedValue = onScreen
             }

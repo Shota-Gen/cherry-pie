@@ -15,13 +15,19 @@ struct MapView: View {
 
     @State private var locManager = LocationManager()
     @State private var showARNavigationSheet = false
-    @State private var showARNavigationBanner = false
     @State private var studySpots: [StudySpot] = []
     @State private var activeUsers: [ActiveStudyUser] = []
-    
+    @State private var navigableFriendCount: Int = 0
+
     @State private var nearbyNavigation: NearbyNavigationService? = nil
-    
+
     private let studySpotService = StudySpotService()
+    private let friendsService = FriendsService()
+
+    /// AR nav requires a friend to actually navigate to. The banner hides when nobody is reachable.
+    private var canShowARNavigationBanner: Bool {
+        nearbyNavigation != nil && navigableFriendCount > 0
+    }
     
     // This allows the map to start at the user's location and
     // stay interactive (panning/zooming won't be fought)
@@ -72,7 +78,7 @@ struct MapView: View {
             MapPitchToggle()
         }
         .overlay(alignment: .top) {
-            if showARNavigationBanner {
+            if canShowARNavigationBanner {
                 ARNavigationBanner {
                     showARNavigationSheet = true
                 }
@@ -81,6 +87,7 @@ struct MapView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: canShowARNavigationBanner)
         .fullScreenCover(isPresented: $showARNavigationSheet) {
             NavigationStack {
                 ARNavigationSelectFriendView(nearbyNavigation: $nearbyNavigation)
@@ -90,7 +97,8 @@ struct MapView: View {
         .task {
             studySpots = await studySpotService.getStudySpots()
             activeUsers = await studySpotService.getActiveUsers()
-            
+            navigableFriendCount = await friendsService.getFriendsInSameStudySpot().count
+
             // retrieve the current user
             var userprofile: UserProfile? = nil
             do {
@@ -103,14 +111,15 @@ struct MapView: View {
             }
             nearbyNavigation = NearbyNavigationService(user: userprofile!, locationManager: locManager)
             nearbyNavigation!.broadcastUser()
-            showARNavigationBanner = true
         }
         .task(id: "refresh") {
-            // Refresh active users every 30 seconds
+            // Refresh active users and navigable friend count every 30 seconds so the AR
+            // banner appears/disappears as peers join or leave the same study spot.
             do {
                 while !Task.isCancelled {
                     try await Task.sleep(for: .seconds(30))
                     activeUsers = await studySpotService.getActiveUsers()
+                    navigableFriendCount = await friendsService.getFriendsInSameStudySpot().count
                 }
             } catch is CancellationError {
                 // Task was cancelled (e.g. view disappeared), exit cleanly

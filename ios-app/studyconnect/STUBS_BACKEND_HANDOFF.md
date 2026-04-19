@@ -76,3 +76,30 @@ File: `ios-app/studyconnect/studyconnect/Services/SessionService.swift`
      2. `INSERT INTO public.session_members (session_id, user_id, status)` — owner row `'accepted'`, invitee rows `'pending'`
    - `spotId` is now optional (`UUID?`); pass `nil` until spot selection is re-introduced.
    - Triggered from: `Views/Session/FindAvailabilityView.swift` Send Invites button.
+
+## Session Invites (accept-card details)
+
+File: `ios-app/studyconnect/studyconnect/Services/SessionInviteService.swift`
+
+1. `fetchSessionExtrasStub(sessionId:studySpotName:) -> SessionExtras`
+   - **STUB.** Returns `locationName`, `locationAddress`, and `meetingLink` for a session so the
+     invite and accepted-session cards can render a map pin and a Google Meet link.
+   - Currently returns deterministic example data keyed off the session UUID (3 rotating
+     samples: Shapiro UGLI, Hatcher, Duderstadt with hard-coded U-M addresses and fake
+     Meet URLs). `studySpotName` is used when available so the example matches the
+     real spot name.
+   - Hook to:
+     1. `SELECT name, address FROM public.study_spots WHERE spot_id = ?` for the physical location
+        (requires adding an `address TEXT` column to `study_spots`, or a new `location_address`
+        column on `sessions` if the address should be a free-form override).
+     2. The Google Calendar event created in `services/google_calendar_invite.py` exposes a
+        `hangoutLink` field — persist it on `sessions.meeting_link` when creating the session, then
+        return it here so the iOS UI can show a "Join Google Meet" button.
+   - Used by: `getPendingInvites()`, rendered on `Views/Components/SessionInviteRowView.swift`
+     and `Views/Components/SessionAcceptedModal.swift`.
+
+2. Real fields already wired from Supabase in `getPendingInvites()` (no backend work needed):
+   - `sessions.title` → `SessionInvite.title`
+   - `sessions.description` → `SessionInvite.description`
+   - `sessions.study_spot_id` → joined with `study_spots.name` → fed into the stub above
+     as `studySpotName`.

@@ -11,6 +11,8 @@ struct SessionInviteRowView: View {
     let onAccept: () -> Void
     let onDecline: () -> Void
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
@@ -23,9 +25,10 @@ struct SessionInviteRowView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
 
-                    Text("Invited you to study")
+                    Text("Invited you to \(invite.displayTitle)")
                         .font(.caption)
                         .foregroundColor(.gray)
+                        .lineLimit(1)
                 }
 
                 Spacer()
@@ -35,15 +38,46 @@ struct SessionInviteRowView: View {
                     .foregroundColor(.gray)
             }
 
-            HStack(spacing: 4) {
-                Image(systemName: "clock.circle.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+            VStack(alignment: .leading, spacing: 6) {
+                detailRow(
+                    icon: "clock.fill",
+                    text: "\(invite.dayLabel), \(invite.timeRange)"
+                )
 
-                Text("\(invite.dayLabel), \(invite.timeRange)")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.gray)
+                if let location = invite.locationName, !location.isEmpty {
+                    detailRow(
+                        icon: "mappin.and.ellipse",
+                        text: locationSummary(name: location, address: invite.locationAddress)
+                    )
+                }
+
+                if let description = invite.description?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !description.isEmpty {
+                    detailRow(
+                        icon: "text.alignleft",
+                        text: description,
+                        lineLimit: 3
+                    )
+                }
+
+                if let link = invite.meetingLink,
+                   let url = URL(string: link) {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "video.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Join Google Meet")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             HStack(spacing: 10) {
@@ -78,6 +112,30 @@ struct SessionInviteRowView: View {
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(12)
     }
+
+    private func detailRow(icon: String, text: String, lineLimit: Int = 2) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+                .frame(width: 14, alignment: .center)
+                .padding(.top, 2)
+
+            Text(text)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.gray)
+                .lineLimit(lineLimit)
+                .multilineTextAlignment(.leading)
+        }
+    }
+
+    private func locationSummary(name: String, address: String?) -> String {
+        guard let address = address?.trimmingCharacters(in: .whitespacesAndNewlines), !address.isEmpty else {
+            return name
+        }
+        return "\(name) • \(address)"
+    }
 }
 
 #Preview {
@@ -87,7 +145,12 @@ struct SessionInviteRowView: View {
             fromUser: UserProfile(userId: UUID(), displayName: "Leo Messi", email: "leo@umich.edu"),
             startTime: Calendar.current.date(bySettingHour: 14, minute: 0, second: 0, of: Date()) ?? Date(),
             endTime: Calendar.current.date(bySettingHour: 17, minute: 0, second: 0, of: Date()) ?? Date(),
-            createdAt: Date(timeIntervalSinceNow: -120)
+            createdAt: Date(timeIntervalSinceNow: -120),
+            title: "EECS 498 Cram Session",
+            description: "Reviewing final practice problems and going over weak spots before tomorrow's exam.",
+            locationName: "Shapiro Undergraduate Library",
+            locationAddress: "919 S University Ave, Ann Arbor, MI 48109",
+            meetingLink: "https://meet.google.com/abc-defg-hij"
         ),
         onAccept: {},
         onDecline: {}

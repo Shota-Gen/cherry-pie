@@ -11,24 +11,36 @@ import Observation
 
 // Uses modern CLLocationUpdate.liveUpdates() approach to fetch location.
 // This is the recommended approach for iOS 17+ location updates.
+// Heading still requires the classic CLLocationManagerDelegate pattern.
 @Observable
-class LocationManager {
-    private let manager = CLLocationManager()
+class LocationManager: NSObject, CLLocationManagerDelegate {
+    @ObservationIgnored private let manager = CLLocationManager()
     var location: CLLocationCoordinate2D?
     public var altitude: Double = 0
-    private var updateTask: Task<Void, Never>?
-    
-    init() {
+    /// Device heading in degrees clockwise from true north (0 = N, 90 = E).
+    /// -1 when heading is unavailable (e.g. simulator, magnetic interference).
+    public var trueHeading: CLLocationDirection = -1
+    @ObservationIgnored private var updateTask: Task<Void, Never>?
+
+    override init() {
+        super.init()
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
         manager.requestAlwaysAuthorization()
-        
+        manager.headingFilter = 1
+        manager.headingOrientation = .portrait
+        manager.delegate = self
+
         startUpdates()
+        if CLLocationManager.headingAvailable() {
+            manager.startUpdatingHeading()
+        }
     }
-    
+
     deinit {
         updateTask?.cancel()
+        manager.stopUpdatingHeading()
     }
 
     private func startUpdates() {
@@ -37,12 +49,10 @@ class LocationManager {
                 let updates = CLLocationUpdate.liveUpdates()
                 for try await update in updates {
                     guard let self = self, let newLocation = update.location else { continue }
-                    
-                    // Update the coordinate for Supabase
+
                     self.location = newLocation.coordinate
                     self.altitude = newLocation.altitude
-                    
-                    // Send location to db
+
                     Task {
                         await SupabaseManager.shared.updateLocation(
                             latitude: newLocation.coordinate.latitude,
@@ -55,5 +65,14 @@ class LocationManager {
                 print("Failed to observe location updates: \(error)")
             }
         }
+    }
+
+    // MARK: - CLLocationManagerDelegate
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        // Prefer true heading; fall back to magnetic when true is unavailable (< 0).
+        if newHeading.headingAccuracy < 0 { return }
+        let heading = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        trueHeading = heading
     }
 }

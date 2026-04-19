@@ -187,8 +187,7 @@ struct FriendsView: View {
 
                     SessionAcceptedModal(
                         isPresented: $showAcceptedModal,
-                        invitingUser: invite.fromUser,
-                        sessionDate: invite.startTime
+                        invite: invite
                     )
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
                     .zIndex(1)

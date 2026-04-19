@@ -13,7 +13,17 @@ struct SessionInvite: Identifiable {
     let startTime: Date
     let endTime: Date
     let createdAt: Date
-    
+
+    // Additional session details surfaced on the accept card.
+    // `title`/`description` come from the real `sessions` row when present.
+    // `locationName`/`locationAddress`/`meetingLink` are populated via
+    // `SessionInviteService.fetchSessionExtrasStub` until the backend ships real fields.
+    let title: String?
+    let description: String?
+    let locationName: String?
+    let locationAddress: String?
+    let meetingLink: String?
+
     var timeRange: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
@@ -21,11 +31,11 @@ struct SessionInvite: Identifiable {
         let end = formatter.string(from: endTime)
         return "\(start) - \(end)"
     }
-    
+
     var dayLabel: String {
         let today = Calendar.current.startOfDay(for: Date())
         let inviteDay = Calendar.current.startOfDay(for: startTime)
-        
+
         if inviteDay == today {
             return "Today"
         } else if inviteDay == Calendar.current.date(byAdding: .day, value: 1, to: today) {
@@ -36,10 +46,10 @@ struct SessionInvite: Identifiable {
             return formatter.string(from: startTime)
         }
     }
-    
+
     var createdTimeAgo: String {
         let interval = Date().timeIntervalSince(createdAt)
-        
+
         if interval < 60 {
             return "now"
         } else if interval < 3600 {
@@ -52,5 +62,10 @@ struct SessionInvite: Identifiable {
             let days = Int(interval / 86400)
             return "\(days)d ago"
         }
+    }
+
+    var displayTitle: String {
+        let trimmed = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Study Session" : trimmed
     }
 }
