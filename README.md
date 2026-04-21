@@ -13,7 +13,6 @@ StudyConnect is a hybrid **iOS + Cloud** platform that enables real-time student
 - 🗺 PostGIS-powered geospatial database
 - 🔐 Supabase authentication
 - 📅 Google Calendar integration
-- ⚡ Real-time UDP relay for sensor communication
 - 🚀 Automated CI/CD via GitHub Actions
 
 ---
@@ -26,8 +25,6 @@ iOS App (Swift)
 FastAPI Backend (Railway)
         ↓
 PostgreSQL + PostGIS (Supabase)
-        ↓
-UDP Relay Service (Fly.io)
 ```
 
 ---
@@ -40,8 +37,7 @@ UDP Relay Service (Fly.io)
 | API              | FastAPI, Uvicorn        |
 | Database         | PostgreSQL 15 + PostGIS |
 | Auth             | Supabase                |
-| Realtime Relay   | Swift (UDP)             |
-| Deployment       | Railway, Fly.io         |
+| Deployment       | Railway                 |
 | CI/CD            | GitHub Actions          |
 | Containerization | Docker                  |
 
@@ -104,7 +100,6 @@ docker compose up --build
 This starts your app services that connect to the local Supabase:
 
 - **API** → http://localhost:8080
-- **UDP Relay** → localhost:5000
 
 ---
 
@@ -113,6 +108,9 @@ This starts your app services that connect to the local Supabase:
 ```bash
 # Reset database (re-runs all migrations + seeds)
 supabase db reset
+
+# Push migration changes to remote
+supabase db push
 
 # Stop everything
 docker compose down
@@ -141,7 +139,6 @@ StudyConnect/
 │
 ├── ios-app/          # iOS client (Swift, AR)
 ├── backend-api/      # FastAPI backend
-├── backend-relay/    # UDP real-time relay
 ├── supabase/         # DB migrations & configs
 ├── docker-compose.yml
 └── README.md
@@ -160,7 +157,6 @@ We use a trunk-based workflow with automated deployment.
 
 3. Once merged:
    - `/backend-api` auto-deploys to Railway
-   - `/backend-relay` auto-deploys to Fly.io
 
 ---
 
@@ -213,8 +209,7 @@ We use a trunk-based workflow with automated deployment.
 Orchestrates:
 
 - FastAPI API container
-- Swift UDP Relay container
-- Both connect to local Supabase via `host.docker.internal`
+- Connects to local Supabase via `host.docker.internal`
 
 ### supabase/
 
@@ -235,7 +230,7 @@ Locks backend dependencies for deterministic builds.
 ## 🔐 Security Notes
 
 - Secrets are managed via environment variables.
-- Production secrets are stored in Railway / Fly.io.
+- Production secrets are stored in Railway.
 - Never hardcode API keys.
 - Use HTTPS in production.
 
@@ -257,9 +252,10 @@ Locks backend dependencies for deterministic builds.
 | Domain           | Team           |
 | ---------------- | -------------- |
 | iOS              | Ayah, Jawad    |
-| Backend API      | Anant, Josh    |
-| Relay            | Jeffrey, David |
-| Database & Infra | Shota          |
+| Precise Location | Jeffrey, Josh  |
+| Backend & Infra  | Shota          |
+| Google Sign In   | David          |
+| Sessions         | Anant          |
 
 ---
 
