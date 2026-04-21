@@ -182,7 +182,6 @@ struct FindAvailabilityView: View {
                         }
                     }
 
-                    Color.clear.frame(height: 80)
                 }
                 .padding()
 
