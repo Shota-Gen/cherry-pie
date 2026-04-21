@@ -9,15 +9,6 @@ import Auth
 internal import PostgREST
 import Supabase
 
-/// Extra session details that aren't yet returned by the real backend.
-/// Backend partner: replace `fetchSessionExtrasStub` with a real fetch that joins
-/// the study_spots table for the address and pulls the Google Meet link from the
-/// Calendar event created during session creation.
-struct SessionExtras {
-    let locationName: String?
-    let locationAddress: String?
-    let meetingLink: String?
-}
 
 class SessionInviteService {
 
@@ -92,28 +83,7 @@ class SessionInviteService {
             }
         }
 
-        // 4. Look up study spot names for any sessions that reference one.
-        let studySpotIds = Array(Set(sessionRows.compactMap { $0["study_spot_id"] as? String }))
-        var spotNames: [String: String] = [:]
-        if !studySpotIds.isEmpty {
-            do {
-                let result = try await client
-                    .from("study_spots")
-                    .select("spot_id,name")
-                    .in("spot_id", values: studySpotIds)
-                    .execute()
-                let rows = (try? JSONSerialization.jsonObject(with: result.data) as? [[String: Any]]) ?? []
-                for row in rows {
-                    guard let id = row["spot_id"] as? String,
-                          let name = row["name"] as? String else { continue }
-                    spotNames[id] = name
-                }
-            } catch {
-                print("❌ Failed to fetch study spot names: \(error.localizedDescription)")
-            }
-        }
-
-        // 5. Build SessionInvite objects (id = session UUID for accept/decline).
+        // 4. Build SessionInvite objects (id = session UUID for accept/decline).
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
@@ -138,9 +108,7 @@ class SessionInviteService {
             let createdAt = parseDate(session["created_at"]) ?? Date()
             let title = session["title"] as? String
             let description = session["description"] as? String
-            let spotName = (session["study_spot_id"] as? String).flatMap { spotNames[$0] }
-
-            let extras = fetchSessionExtrasStub(sessionId: sessionUUID, studySpotName: spotName)
+            let locationName = session["location_name"] as? String
 
             invites.append(SessionInvite(
                 id: sessionUUID,
@@ -150,9 +118,8 @@ class SessionInviteService {
                 createdAt: createdAt,
                 title: title,
                 description: description,
-                locationName: extras.locationName,
-                locationAddress: extras.locationAddress,
-                meetingLink: extras.meetingLink
+                locationName: locationName,
+                meetingLink: nil
             ))
         }
 
@@ -204,33 +171,5 @@ class SessionInviteService {
                 print("❌ Invite response error: \(error.localizedDescription)")
             }
         }
-    }
-
-    // MARK: - Stubbed extras
-
-    /// STUB — backend partner: replace with a real fetch that returns location address
-    /// and Google Meet link per session (see STUBS_BACKEND_HANDOFF.md).
-    /// Produces deterministic example data keyed off the session UUID so the UI stays stable.
-    private func fetchSessionExtrasStub(sessionId: UUID, studySpotName: String?) -> SessionExtras {
-        let samples: [SessionExtras] = [
-            SessionExtras(
-                locationName: studySpotName ?? "Shapiro Undergraduate Library",
-                locationAddress: "919 S University Ave, Ann Arbor, MI 48109",
-                meetingLink: "https://meet.google.com/abc-defg-hij"
-            ),
-            SessionExtras(
-                locationName: studySpotName ?? "Hatcher Graduate Library",
-                locationAddress: "913 S University Ave, Ann Arbor, MI 48109",
-                meetingLink: "https://meet.google.com/xyz-1234-uvw"
-            ),
-            SessionExtras(
-                locationName: studySpotName ?? "Duderstadt Center",
-                locationAddress: "2281 Bonisteel Blvd, Ann Arbor, MI 48109",
-                meetingLink: "https://meet.google.com/mno-5678-pqr"
-            ),
-        ]
-        let bytes = withUnsafeBytes(of: sessionId.uuid) { Array($0) }
-        let idx = Int(bytes.first ?? 0) % samples.count
-        return samples[idx]
     }
 }

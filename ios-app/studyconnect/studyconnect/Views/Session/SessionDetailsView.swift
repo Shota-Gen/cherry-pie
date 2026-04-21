@@ -10,6 +10,11 @@ import SwiftUI
 struct SessionDetailsView: View {
     var selectedFriends: [UserProfile]
 
+    @State private var title = ""
+    @State private var locationName = ""
+    @State private var sessionDescription = ""
+    @State private var addGoogleMeet = false
+
     @State private var startDate = Date()
     @State private var endDate = Calendar.current.date(byAdding: .day, value: 6, to: Date()) ?? Date()
     @State private var duration = 2
@@ -35,6 +40,64 @@ struct SessionDetailsView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+
+                    // TITLE
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionLabel("TITLE")
+
+                        TextField("e.g. EECS 498 Cram Session", text: $title)
+                            .font(.body)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(12)
+                    }
+
+                    // LOCATION
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionLabel("LOCATION")
+
+                        TextField("e.g. Shapiro Library", text: $locationName)
+                            .font(.body)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(12)
+                    }
+
+                    // DESCRIPTION
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionLabel("DESCRIPTION")
+
+                        TextField("What's the plan?", text: $sessionDescription, axis: .vertical)
+                            .font(.body)
+                            .lineLimit(3...6)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(12)
+                    }
+
+                    // GOOGLE MEET
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionLabel("MEETING LINK")
+
+                        HStack {
+                            Image(systemName: "video.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.blue)
+                            Text("Add Google Meet")
+                                .fontWeight(.medium)
+                            Spacer()
+                            Toggle("", isOn: $addGoogleMeet)
+                                .labelsHidden()
+                        }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(12)
+
+                        Text("A Google Meet link will be created and shared with invitees")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 4)
+                    }
 
                     // DATE RANGE
                     VStack(alignment: .leading, spacing: 8) {
@@ -141,7 +204,11 @@ struct SessionDetailsView: View {
                 endDate: endDate,
                 duration: duration,
                 earliestStart: earliestStart,
-                latestEnd: latestEnd
+                latestEnd: latestEnd,
+                title: title,
+                locationName: locationName,
+                description: sessionDescription,
+                addGoogleMeet: addGoogleMeet
             ))) {
                 HStack(spacing: 8) {
                     Text("Find Availability")
@@ -159,6 +226,9 @@ struct SessionDetailsView: View {
             }
         }
         .background(Color(red: 0.95, green: 0.95, blue: 0.95).ignoresSafeArea())
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
         .navigationTitle("Session Details")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showDatePicker) {

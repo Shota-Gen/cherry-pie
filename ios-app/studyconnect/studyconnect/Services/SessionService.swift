@@ -178,7 +178,8 @@ class SessionService {
     // MARK: - Create Session
 
     /// Create a study session and send invites via the backend API.
-    func createSession(createdBy: UUID, spotId: UUID?, starts: Date, ends: Date, invitedUsers: [UUID]) {
+    func createSession(createdBy: UUID, spotId: UUID?, starts: Date, ends: Date, invitedUsers: [UUID],
+                        title: String, locationName: String, description: String, addGoogleMeet: Bool) {
         Task {
             do {
                 var components = URLComponents(string: "\(baseURL)/sessions/private")!
@@ -197,11 +198,18 @@ class SessionService {
                 formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
                 var body: [String: Any] = [
-                    "title": "Study Session",
+                    "title": title.isEmpty ? "Study Session" : title,
                     "starts_at": formatter.string(from: starts),
                     "ends_at": formatter.string(from: ends),
-                    "invitee_ids": invitedUsers.map { $0.uuidString.lowercased() }
+                    "invitee_ids": invitedUsers.map { $0.uuidString.lowercased() },
+                    "add_google_meet": addGoogleMeet
                 ]
+                if !locationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    body["location_name"] = locationName
+                }
+                if !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    body["description"] = description
+                }
                 if let spotId {
                     body["study_spot_id"] = spotId.uuidString.lowercased()
                 }

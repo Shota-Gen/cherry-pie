@@ -16,4 +16,10 @@ struct SessionConfig: Hashable {
     var duration: Int        // hours, 1–8
     var earliestStart: Date  // time-of-day reference (only h/m used)
     var latestEnd: Date      // time-of-day reference (only h/m used)
+
+    // Session metadata entered by the user
+    var title: String
+    var locationName: String
+    var description: String
+    var addGoogleMeet: Bool
 }

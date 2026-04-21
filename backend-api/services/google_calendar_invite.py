@@ -9,6 +9,7 @@ Requires the host to have granted the `calendar.events` scope.
 """
 
 import logging
+import uuid
 from datetime import datetime
 
 from google.oauth2.credentials import Credentials
@@ -32,6 +33,7 @@ def create_calendar_event(
     client_id: str,
     client_secret: str,
     location: str | None = None,
+    add_google_meet: bool = False,
 ) -> dict | None:
     """
     Create a Google Calendar event on the host's primary calendar and
@@ -92,6 +94,13 @@ def create_calendar_event(
         event_body["description"] = description
     if location:
         event_body["location"] = location
+    if add_google_meet:
+        event_body["conferenceData"] = {
+            "createRequest": {
+                "requestId": uuid.uuid4().hex,
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            }
+        }
 
     try:
         event = (
@@ -100,6 +109,7 @@ def create_calendar_event(
                 calendarId="primary",
                 body=event_body,
                 sendUpdates="all",  # This triggers GCal invite emails
+                conferenceDataVersion=1 if add_google_meet else 0,
             )
             .execute()
         )
@@ -129,6 +139,7 @@ def send_session_calendar_invites(
     client_id: str,
     client_secret: str,
     location: str | None = None,
+    add_google_meet: bool = False,
 ) -> dict | None:
     """
     High-level helper: create a study session event on the host's calendar
@@ -164,4 +175,5 @@ def send_session_calendar_invites(
         client_id=client_id,
         client_secret=client_secret,
         location=location,
+        add_google_meet=add_google_meet,
     )

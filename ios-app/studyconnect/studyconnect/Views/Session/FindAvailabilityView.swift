@@ -370,7 +370,11 @@ struct FindAvailabilityView: View {
             spotId: nil,
             starts: slot.start,
             ends: slot.end,
-            invitedUsers: config.selectedFriends.map(\.userId)
+            invitedUsers: config.selectedFriends.map(\.userId),
+            title: config.title,
+            locationName: config.locationName,
+            description: config.description,
+            addGoogleMeet: config.addGoogleMeet
         )
         sessionSent = true
     }
@@ -383,7 +387,11 @@ struct FindAvailabilityView: View {
         endDate: Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date(),
         duration: 2,
         earliestStart: Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date(),
-        latestEnd: Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date()
+        latestEnd: Calendar.current.date(bySettingHour: 22, minute: 0, second: 0, of: Date()) ?? Date(),
+        title: "",
+        locationName: "",
+        description: "",
+        addGoogleMeet: false
     )
     NavigationStack {
         FindAvailabilityView(config: config, path: .constant(NavigationPath()))

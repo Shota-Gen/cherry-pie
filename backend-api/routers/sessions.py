@@ -34,12 +34,18 @@ class PrivateSessionCreate(BaseModel):
     study_spot_id: str | None = Field(
         None, description="UUID of the study spot (optional)"
     )
+    location_name: str | None = Field(
+        None, max_length=500, description="Free-form location name"
+    )
     starts_at: datetime = Field(..., description="Session start time (ISO 8601)")
     ends_at: datetime = Field(..., description="Session end time (ISO 8601)")
     invitee_ids: list[str] = Field(
         ...,
         min_length=1,
         description="List of user_id UUIDs to invite",
+    )
+    add_google_meet: bool = Field(
+        False, description="Whether to auto-create a Google Meet link"
     )
 
     @field_validator("ends_at")
@@ -66,6 +72,7 @@ class PrivateSessionResponse(BaseModel):
     title: str
     description: str | None = None
     study_spot_id: str | None = None
+    location_name: str | None = None
     starts_at: datetime
     ends_at: datetime
     created_at: datetime | None = None
@@ -191,6 +198,8 @@ def create_private_session(
     }
     if payload.study_spot_id:
         session_row["study_spot_id"] = payload.study_spot_id
+    if payload.location_name:
+        session_row["location_name"] = payload.location_name
 
     try:
         session_result = (
@@ -286,6 +295,8 @@ def create_private_session(
                             invitee_emails=invitee_emails,
                             client_id=google_client_id,
                             client_secret=google_client_secret,
+                            location=payload.location_name,
+                            add_google_meet=payload.add_google_meet,
                         )
                 else:
                     logger.info(
@@ -320,6 +331,7 @@ def create_private_session(
         title=session["title"],
         description=session.get("description"),
         study_spot_id=session.get("study_spot_id"),
+        location_name=session.get("location_name"),
         starts_at=session["starts_at"],
         ends_at=session["ends_at"],
         created_at=session.get("created_at"),
@@ -405,6 +417,7 @@ def get_session(session_id: str, supabase: SupabaseDep):
         title=session["title"],
         description=session.get("description"),
         study_spot_id=session.get("study_spot_id"),
+        location_name=session.get("location_name"),
         starts_at=session["starts_at"],
         ends_at=session["ends_at"],
         created_at=session.get("created_at"),

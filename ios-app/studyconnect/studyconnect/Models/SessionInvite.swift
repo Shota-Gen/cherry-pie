@@ -14,14 +14,13 @@ struct SessionInvite: Identifiable {
     let endTime: Date
     let createdAt: Date
 
-    // Additional session details surfaced on the accept card.
-    // `title`/`description` come from the real `sessions` row when present.
-    // `locationName`/`locationAddress`/`meetingLink` are populated via
-    // `SessionInviteService.fetchSessionExtrasStub` until the backend ships real fields.
+    // Additional session details.
+    // `title`/`description` come from the real `sessions` row.
+    // `locationName` comes from `sessions.location_name`.
+    // `meetingLink` is unused (Meet links live on Google Calendar only).
     let title: String?
     let description: String?
     let locationName: String?
-    let locationAddress: String?
     let meetingLink: String?
 
     var timeRange: String {

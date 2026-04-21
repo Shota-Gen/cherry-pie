@@ -11,7 +11,6 @@ struct SessionInviteRowView: View {
     let onAccept: () -> Void
     let onDecline: () -> Void
 
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -47,7 +46,7 @@ struct SessionInviteRowView: View {
                 if let location = invite.locationName, !location.isEmpty {
                     detailRow(
                         icon: "mappin.and.ellipse",
-                        text: locationSummary(name: location, address: invite.locationAddress)
+                        text: location
                     )
                 }
 
@@ -58,25 +57,6 @@ struct SessionInviteRowView: View {
                         text: description,
                         lineLimit: 3
                     )
-                }
-
-                if let link = invite.meetingLink,
-                   let url = URL(string: link) {
-                    Button {
-                        openURL(url)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "video.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                            Text("Join Google Meet")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10, weight: .semibold))
-                        }
-                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
-                    }
-                    .buttonStyle(.plain)
                 }
             }
 
@@ -130,12 +110,7 @@ struct SessionInviteRowView: View {
         }
     }
 
-    private func locationSummary(name: String, address: String?) -> String {
-        guard let address = address?.trimmingCharacters(in: .whitespacesAndNewlines), !address.isEmpty else {
-            return name
-        }
-        return "\(name) • \(address)"
-    }
+
 }
 
 #Preview {
@@ -149,8 +124,7 @@ struct SessionInviteRowView: View {
             title: "EECS 498 Cram Session",
             description: "Reviewing final practice problems and going over weak spots before tomorrow's exam.",
             locationName: "Shapiro Undergraduate Library",
-            locationAddress: "919 S University Ave, Ann Arbor, MI 48109",
-            meetingLink: "https://meet.google.com/abc-defg-hij"
+            meetingLink: nil
         ),
         onAccept: {},
         onDecline: {}

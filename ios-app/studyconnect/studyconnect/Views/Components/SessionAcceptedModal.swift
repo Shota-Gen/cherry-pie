@@ -10,7 +10,6 @@ struct SessionAcceptedModal: View {
     @Binding var isPresented: Bool
     let invite: SessionInvite
 
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
         VStack(spacing: 18) {
@@ -38,7 +37,7 @@ struct SessionAcceptedModal: View {
                 if let location = invite.locationName, !location.isEmpty {
                     detailRow(
                         icon: "mappin.and.ellipse",
-                        text: locationSummary(name: location, address: invite.locationAddress)
+                        text: location
                     )
                 }
 
@@ -47,23 +46,6 @@ struct SessionAcceptedModal: View {
                     detailRow(icon: "text.alignleft", text: description, lineLimit: 4)
                 }
 
-                if let link = invite.meetingLink, let url = URL(string: link) {
-                    Button {
-                        openURL(url)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "video.fill")
-                                .font(.system(size: 13, weight: .semibold))
-                            Text("Join Google Meet")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
@@ -109,12 +91,7 @@ struct SessionAcceptedModal: View {
         }
     }
 
-    private func locationSummary(name: String, address: String?) -> String {
-        guard let address = address?.trimmingCharacters(in: .whitespacesAndNewlines), !address.isEmpty else {
-            return name
-        }
-        return "\(name)\n\(address)"
-    }
+
 
     private var dateLabel: String {
         let today = Calendar.current.startOfDay(for: Date())
