@@ -8,7 +8,7 @@
 ![Elevator Pitch](/imgs/title.png) <!-- MUST be placed in publicly accessible github -->
 ![Team](/imgs/team.png)
 
-[video]: https://youtu.be/zx3ITjAUZ78
+[video]: https://youtu.be/qYMwrOU80mU
 [wiki]: https://github.com/Shota-Gen/cherry-pie/wiki
 [agile]: https://trello.com/b/rTodfQt7/studyconnect-workspace
 
