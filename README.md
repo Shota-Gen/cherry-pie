@@ -10,7 +10,7 @@
 
 [video]: https://youtu.be/zx3ITjAUZ78
 [wiki]: https://github.com/Shota-Gen/cherry-pie/wiki
-[agile]: https://trello.com/b/rTodfQt7/studyconnect-workspace <!-- MUST be made public –>
+[agile]: https://trello.com/b/rTodfQt7/studyconnect-workspace
 
 # 🎓 StudyConnect
 
