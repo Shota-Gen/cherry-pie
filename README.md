@@ -1,3 +1,17 @@
+# UM EECS 498-002 W25 CherryPie
+
+| Video  |  Wiki |  Agile |
+|:-----:|:-----:|:--------:|
+|[<img src="https://eecs441.eecs.umich.edu/img/admin/video.png">][video]|[<img src="https://eecs441.eecs.umich.edu/img/admin/wiki.png">][wiki]|[<img src="https://eecs441.eecs.umich.edu/img/admin/trello.png">][agile]|
+<!-- reusing the icons from eecs441 -->
+
+![Elevator Pitch](/imgs/title.png) <!-- MUST be placed in publicly accessible github -->
+![Team](/imgs/team.png)
+
+[video]: https://youtu.be/zx3ITjAUZ78
+[wiki]: https://github.com/Shota-Gen/cherry-pie/wiki
+[agile]: https://trello.com/b/rTodfQt7/studyconnect-workspace <!-- MUST be made public –>
+
 # 🎓 StudyConnect
 
 > High-precision student collaboration platform built for the University of Michigan.
